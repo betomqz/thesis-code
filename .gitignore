@@ -1,0 +1,20 @@
+thesisenv/
+.DS_Store
+
+# LaTeX
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.bbl
+*.bcf
+*.xml
+*.toc
+*.blg
+tesis.pdf
+
+__pycache__/
+tmp/
+models/
