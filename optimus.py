@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.optimize import rosen_hess
 
 
 def step_length_binary_search(y, d_y, tau, iters=7):
@@ -114,7 +113,8 @@ def int_point_qp(G: np.array,
         alpha = np.min([alpha_pri, alpha_dual])
 
         if alpha == 0:
-            print(f"Error: alpha is 0 for iter {k}")
+            if verbose:
+                print(f"WARNING: alpha is 0 for iter {k}")
             alpha = 0.1
 
         # Update x_k, y_k, and lam_k
@@ -134,7 +134,8 @@ def int_point_qp(G: np.array,
                 f" - ||d_lam||: {np.linalg.norm(d_lam)}\n" +
                 f" - alpha: {alpha}\n")
 
-    print(f"Maximum number of iterations achieved: {maxiters}")
+    if verbose:
+        print(f"WARNING: Maximum number of iterations achieved: {maxiters}")
     return x_k, y_k, lam_k
 
 
@@ -159,8 +160,8 @@ def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
     f_k, grad_k = fun(x_k) # fun must return both f and its gradient
     c_k, A_k = restr(x_k) # restr must return both c(x) and A(x)
 
-    # ||c_k||_1
-    c_k_norm = np.linalg.norm(c_k, ord=1)
+    # || [c_k]^- ||_1: see (15.24)
+    c_k_norm = np.linalg.norm(np.maximum(0, -c_k), ord=1)
 
     # Choose initial nxn s.p.d. Hessian approximation B_0
     B_k = B_0
@@ -193,12 +194,13 @@ def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
         p_lam = lam_hat - lam_k
 
         # Choose mu_k to satisfy (18.36) with sigma=1
-        mess = np.dot(grad_k, p_k) + 0.5 * np.dot(p_k, np.dot(B_k, p_k))
-        mess /= (1 - rho) * c_k_norm
         count_mu = 0
-        while mu_k < mess and count_mu < 15:
-            mu_k *= 2
-            count_mu += 1
+        if c_k_norm > 0:
+            mess = np.dot(grad_k, p_k) + 0.5 * np.dot(p_k, np.dot(B_k, p_k))
+            mess /= (1 - rho) * c_k_norm
+            while mu_k < mess and count_mu < 15:
+                mu_k *= 2
+                count_mu += 1
 
         # Set alpha_k <- 1
         alpha_k = 1
@@ -212,7 +214,7 @@ def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
             s_k = alpha_k * p_k
             f_k, grad_k = fun(x_k + s_k)
             c_k, A_k = restr(x_k + s_k)
-            c_k_norm = np.linalg.norm(c_k)
+            c_k_norm = np.linalg.norm(np.maximum(0, -c_k), ord=1)
 
             # Compute phi_1
             phi = f_k + mu_k * c_k_norm
@@ -269,6 +271,7 @@ def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
         
         k += 1
         # If stopping criteria is met, return. 
+        # TODO: is this really the best criteria?
         if np.linalg.norm(kkt) <= tol:
             print("Solution found")
             print(f"iter {k}:\n - x: {x_k}\n - l: {lam_k}")
@@ -279,9 +282,7 @@ def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
               f" - x: {x_k}\n" +
               f" - l: {lam_k}\n" +
               f" - ||kkt||: {np.linalg.norm(kkt)}\n" +
-              f" - B_k: {B_k}\n" +
-            #   f" - diff: {np.abs(B_k - rosen_hess(x_k))}"
               f" - alpha_k: {alpha_k}\n")
 
-    print(f"Maximum number of iterations achieved: {maxiters}")
+    print(f"WARNING: maximum number of iterations achieved: {maxiters}")
     return x_k, lam_k
