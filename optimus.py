@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import rosen_hess
 
 
 def step_length_binary_search(y, d_y, tau, iters=7):
@@ -31,6 +32,7 @@ def int_point_qp(G: np.array,
                  sigma: float = 0.5,
                  maxiters: int = 50,
                  tol: np.float64 = np.finfo(np.float64).eps,
+                 verbose = True
                  ) -> tuple[np.array, np.array, np.array]:
     '''
     Solve quadratic problem
@@ -96,8 +98,9 @@ def int_point_qp(G: np.array,
 
         # If stopping criteria is met, return. 
         if np.linalg.norm(d_x) <= tol:
-            print("Solution found")
-            print(f"iter {k}:\n - x: {x_k}\n - y: {y_k}\n - l: {lam_k}")
+            if verbose:
+                print("Solution found")
+                print(f"iter {k}:\n - x: {x_k}\n - y: {y_k}\n - l: {lam_k}")
             return x_k, y_k, lam_k
 
         # Step length selection from (16.66)
@@ -121,14 +124,164 @@ def int_point_qp(G: np.array,
 
         k += 1
         # TODO: better use a logger.
-        print(f"iter {k}:\n" +
-              f" - x: {x_k}\n" +
-              f" - y: {y_k}\n" +
-              f" - l: {lam_k}\n" +
-              f" - ||d_x||: {np.linalg.norm(d_x)}\n" +
-              f" - ||d_y||: {np.linalg.norm(d_y)}\n" +
-              f" - ||d_lam||: {np.linalg.norm(d_lam)}\n" +
-              f" - alpha: {alpha}\n")
+        if verbose:
+            print(f"iter {k}:\n" +
+                f" - x: {x_k}\n" +
+                f" - y: {y_k}\n" +
+                f" - l: {lam_k}\n" +
+                f" - ||d_x||: {np.linalg.norm(d_x)}\n" +
+                f" - ||d_y||: {np.linalg.norm(d_y)}\n" +
+                f" - ||d_lam||: {np.linalg.norm(d_lam)}\n" +
+                f" - alpha: {alpha}\n")
 
     print(f"Maximum number of iterations achieved: {maxiters}")
     return x_k, y_k, lam_k
+
+
+def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
+    '''
+    Parameters:
+    - `fun` is the function to minimize. Must return f(x) and its gradient
+    - `retr` are the restrictions (denoted by c(x) in Nocedal). Must return
+             c(x) and the Jacobian as well (denoted by A(x) in Nocedal).
+    - `x_0` is the starting point
+    - `lam_0` is the initial guess for the multipliers
+    - `B_0` is the initial guess for the Hessian matrix. Must be s.p.d.
+    - `eta` must lie strictly between 0 and 0.5
+    - `tau` must lie strictly between 0 and 1
+    - `maxiters` is the maximum number of iterations allowed
+    - `tol` is the tolerance for the convergence test
+    '''
+
+    # Evaluate f_0, ∇f_0, c_0, A_0;
+    x_k = x_0
+    lam_k = lam_0
+    f_k, grad_k = fun(x_k) # fun must return both f and its gradient
+    c_k, A_k = restr(x_k) # restr must return both c(x) and A(x)
+
+    # ||c_k||_1
+    c_k_norm = np.linalg.norm(c_k, ord=1)
+
+    # Choose initial nxn s.p.d. Hessian approximation B_0
+    B_k = B_0
+
+    # mu_k and rho for (18.36)
+    rho = 0.1
+    mu_k = 1.0
+
+    # Initial "old" info
+    phi_old = f_k + mu_k * c_k_norm
+    grad_k_old = grad_k
+    A_k_old = A_k
+
+    # Iteration counter
+    k = 0
+
+    # Repeat until convergence test is satisfied
+    while k < maxiters:
+        # Compute p_k by solving (18.11); 
+        # let lambda_hat be the corresponding mult.
+        p_k, _, lam_hat = int_point_qp(G=B_k, 
+                                       c=grad_k,
+                                       A=A_k, 
+                                       b=-c_k,
+                                       x_0=np.ones(x_k.size),
+                                       tol=10e-10,
+                                       verbose=False)
+
+        # Set p_lambda <- lambda_hat - lambda_k
+        p_lam = lam_hat - lam_k
+
+        # Choose mu_k to satisfy (18.36) with sigma=1
+        mess = np.dot(grad_k, p_k) + 0.5 * np.dot(p_k, np.dot(B_k, p_k))
+        mess /= (1 - rho) * c_k_norm
+        count_mu = 0
+        while mu_k < mess and count_mu < 15:
+            mu_k *= 2
+            count_mu += 1
+
+        # Set alpha_k <- 1
+        alpha_k = 1
+        
+        # Compute the directional derivative of last phi
+        deriv = np.dot(grad_k, p_k) - mu_k * c_k_norm
+
+        count_ls = 0
+        while count_ls < 15:
+            # Evaluate possible f_k+1, ∇f_k+1, c_k+1, A_k+1
+            s_k = alpha_k * p_k
+            f_k, grad_k = fun(x_k + s_k)
+            c_k, A_k = restr(x_k + s_k)
+            c_k_norm = np.linalg.norm(c_k)
+
+            # Compute phi_1
+            phi = f_k + mu_k * c_k_norm
+
+            # If line search criteria is met, interrupt while
+            if phi <= phi_old + eta * alpha_k * deriv:
+                break
+            # else reset alpha_k <- tau_alpha * alpha_k for some tau_alpha in
+            # (0,tau]. TODO (maybe?) choose a better tau_alpha.
+            alpha_k *= tau
+            count_ls += 1
+
+        # Set x_k+1 and lambda_k+1
+        x_k += s_k
+        lam_k += alpha_k * p_lam
+
+        # kkt conditions
+        kkt = grad_k - np.dot(A_k.T, lam_k)
+
+        # Define y_k as in (18.13)
+        y_k = kkt - (grad_k_old - np.dot(A_k_old.T,lam_k))
+
+        # Damped BFGS updating (Procedure 18.2)
+        sy = np.dot(s_k, y_k)
+        Bs = np.dot(B_k, s_k)
+        sBs = np.dot(s_k, Bs)
+
+        # (18.15)
+        theta_k = 1
+        if sy < 0.2 * sBs:
+            theta_k = 0.8 * sBs / (sBs - sy)
+
+        r_k = theta_k * y_k + (1 - theta_k) * Bs
+
+        # Update B_k with (18.16) to guarantee that it is s.p.d.
+        BssB = np.outer(Bs, Bs)
+        rrT = np.outer(r_k, r_k)
+        B_k = B_k - BssB / sBs + rrT / np.dot(s_k, r_k)
+
+        # Update old info
+        phi_old = phi
+        grad_k_old = grad_k.copy()
+        A_k_old = A_k.copy()
+
+        # If something went wrong with finding mu_k, reset it to 1
+        if count_mu == 15:
+            print("WARNING: maximum value for mu reached.")
+            mu_k = 1
+
+        # If something went wrong with line search, warn
+        if count_ls == 15:
+            print("WARNING: maximum number of iterations achieved for line "
+                  "search")
+        
+        k += 1
+        # If stopping criteria is met, return. 
+        if np.linalg.norm(kkt) <= tol:
+            print("Solution found")
+            print(f"iter {k}:\n - x: {x_k}\n - l: {lam_k}")
+            return x_k, lam_k
+
+        # TODO: better use a logger.
+        print(f"iter {k}:\n" +
+              f" - x: {x_k}\n" +
+              f" - l: {lam_k}\n" +
+              f" - ||kkt||: {np.linalg.norm(kkt)}\n" +
+              f" - B_k: {B_k}\n" +
+            #   f" - diff: {np.abs(B_k - rosen_hess(x_k))}"
+              f" - alpha_k: {alpha_k}\n")
+
+    print(f"Maximum number of iterations achieved: {maxiters}")
+    return x_k, lam_k
