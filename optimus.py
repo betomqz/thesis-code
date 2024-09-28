@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import linalg as la
+from typing import Callable
 
 
 def step_length_binary_search(y, d_y, tau, iters=7):
@@ -140,7 +141,16 @@ def int_point_qp(G: np.array,
     return x_k, y_k, lam_k
 
 
-def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
+def ls_sqp(fun: Callable[[np.array], tuple[float, np.array]],
+           restr: Callable[[np.array], tuple],
+           x_0: np.array,
+           lam_0: np.array,
+           B_0: np.array,
+           eta: float,
+           tau: float,
+           maxiters: int,
+           tol: float
+           ) -> tuple[np.array, np.array]:
     '''
     Parameters:
     - `fun` is the function to minimize. Must return f(x) and its gradient
