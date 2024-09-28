@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import linalg as la
+from typing import Callable
 
 
 def step_length_binary_search(y, d_y, tau, iters=7):
@@ -22,18 +23,18 @@ def step_length_binary_search(y, d_y, tau, iters=7):
     return low  # Return the highest valid alpha found
 
 
-def int_point_qp(G: np.array,
-                 c: np.array,
-                 A: np.array,
-                 b: np.array,
-                 x_0: np.array,
-                 y_0: np.array = None,
-                 lam_0: np.array = None,
+def int_point_qp(G: np.ndarray,
+                 c: np.ndarray,
+                 A: np.ndarray,
+                 b: np.ndarray,
+                 x_0: np.ndarray,
+                 y_0: np.ndarray = None,
+                 lam_0: np.ndarray = None,
                  sigma: float = 0.5,
                  maxiters: int = 50,
                  tol: np.float64 = np.finfo(np.float64).eps,
                  verbose = True
-                 ) -> tuple[np.array, np.array, np.array]:
+                 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     '''
     Solve quadratic problem
         $$ \\min  q(x) = \\frac{1}{2} x^T G x + x^T c $$
@@ -41,7 +42,7 @@ def int_point_qp(G: np.array,
     Using the interior point method described by Nocedal.
 
     Parameters
-    - `G` (np.array): symmetric and positive semidefinite nxn matrix
+    - `G` (np.ndarray): symmetric and positive semidefinite nxn matrix
     - `c` is a vector of size n
     - `A` is an mxn matrix
     - `b` is a vector of size m
@@ -140,7 +141,16 @@ def int_point_qp(G: np.array,
     return x_k, y_k, lam_k
 
 
-def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
+def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
+           restr: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]],
+           x_0: np.ndarray,
+           lam_0: np.ndarray,
+           B_0: np.ndarray,
+           eta: float,
+           tau: float,
+           maxiters: int,
+           tol: np.float64 = np.finfo(np.float64).eps
+           ) -> tuple[np.ndarray, np.ndarray]:
     '''
     Parameters:
     - `fun` is the function to minimize. Must return f(x) and its gradient
