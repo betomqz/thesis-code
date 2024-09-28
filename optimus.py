@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import linalg as la
 
 
 def step_length_binary_search(y, d_y, tau, iters=7):
@@ -90,13 +91,13 @@ def int_point_qp(G: np.array,
         r[n+m:] = pert
 
         # Solve (16.58)
-        deltas = np.linalg.solve(M,r)
+        deltas = la.solve(M,r)
         d_x = deltas[:n]
         d_y = deltas[n:n+m]
         d_lam = deltas[n+m:]
 
         # If stopping criteria is met, return. 
-        if np.linalg.norm(d_x) <= tol:
+        if la.norm(d_x) <= tol:
             if verbose:
                 print("Solution found")
                 print(f"iter {k}:\n - x: {x_k}\n - y: {y_k}\n - l: {lam_k}")
@@ -129,9 +130,9 @@ def int_point_qp(G: np.array,
                 f" - x: {x_k}\n" +
                 f" - y: {y_k}\n" +
                 f" - l: {lam_k}\n" +
-                f" - ||d_x||: {np.linalg.norm(d_x)}\n" +
-                f" - ||d_y||: {np.linalg.norm(d_y)}\n" +
-                f" - ||d_lam||: {np.linalg.norm(d_lam)}\n" +
+                f" - ||d_x||: {la.norm(d_x)}\n" +
+                f" - ||d_y||: {la.norm(d_y)}\n" +
+                f" - ||d_lam||: {la.norm(d_lam)}\n" +
                 f" - alpha: {alpha}\n")
 
     if verbose:
@@ -161,7 +162,7 @@ def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
     c_k, A_k = restr(x_k) # restr must return both c(x) and A(x)
 
     # || [c_k]^- ||_1: see (15.24)
-    c_k_norm = np.linalg.norm(np.maximum(0, -c_k), ord=1)
+    c_k_norm = la.norm(np.maximum(0, -c_k), ord=1)
 
     # Choose initial nxn s.p.d. Hessian approximation B_0
     B_k = B_0
@@ -214,7 +215,7 @@ def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
             s_k = alpha_k * p_k
             f_k, grad_k = fun(x_k + s_k)
             c_k, A_k = restr(x_k + s_k)
-            c_k_norm = np.linalg.norm(np.maximum(0, -c_k), ord=1)
+            c_k_norm = la.norm(np.maximum(0, -c_k), ord=1)
 
             # Compute phi_1
             phi = f_k + mu_k * c_k_norm
@@ -272,7 +273,7 @@ def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
         k += 1
         # If stopping criteria is met, return. 
         # TODO: is this really the best criteria?
-        if np.linalg.norm(kkt) <= tol:
+        if la.norm(kkt) <= tol:
             print("Solution found")
             print(f"iter {k}:\n - x: {x_k}\n - l: {lam_k}")
             return x_k, lam_k
@@ -281,7 +282,7 @@ def ls_sqp(fun, restr, x_0, lam_0, B_0, eta, tau, maxiters, tol):
         print(f"iter {k}:\n" +
               f" - x: {x_k}\n" +
               f" - l: {lam_k}\n" +
-              f" - ||kkt||: {np.linalg.norm(kkt)}\n" +
+              f" - ||kkt||: {la.norm(kkt)}\n" +
               f" - alpha_k: {alpha_k}\n")
 
     print(f"WARNING: maximum number of iterations achieved: {maxiters}")
