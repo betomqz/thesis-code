@@ -109,7 +109,7 @@ def int_point_qp(G: np.ndarray,
         # Choose tau in (0,1) to approach 1 as iterations go on.
         # TODO: This is completely arbitrary but I don't want to think of
         #       something else rn. Seems legit.
-        tau_k = 1 / (1 + np.exp(-0.1 * 10))
+        tau_k = 1 / (1 + np.exp(-0.1 * k))
         alpha_pri = step_length_binary_search(y_k, d_y, tau_k)
         alpha_dual = step_length_binary_search(lam_k, d_lam, tau_k)
         alpha = np.min([alpha_pri, alpha_dual])
