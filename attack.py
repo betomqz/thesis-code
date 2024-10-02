@@ -6,6 +6,7 @@ from scipy.optimize import minimize
 import tensorflow as tf
 from utils import eval_flat_pred
 from utils import TextColors as tc
+from pathlib import Path
 
 
 SUCCESS = 0
@@ -47,13 +48,13 @@ class Attack:
             'nit': None
         }
 
-    def __minimize(self) -> tuple[np.ndarray, float, int]:
+    def _minimize(self) -> tuple[np.ndarray, float, int]:
         '''Executes the optimization method.
 
         Returns (x, fun(x), nit)
         '''
         raise NotImplementedError(
-            f"{tc.FAIL}ERROR{tc.ENDC}: __minimize() method not implemented."
+            f"{tc.FAIL}ERROR{tc.ENDC}: _minimize() method not implemented."
         )
 
     def attack(
@@ -88,7 +89,7 @@ class Attack:
 
         # Evaluate on the right
         self.c = right
-        res_x, res_fun, res_nit = self.__minimize()
+        res_x, res_fun, res_nit = self._minimize()
 
         # If res.x on the right isn't classified as the target, return FAILURE.
         if eval_flat_pred(res_x, self.model) != self.target_class:
@@ -96,8 +97,8 @@ class Attack:
             return FAILURE
 
         # Evaluate on the left
-        self.c = self.left
-        res_x, res_fun, res_nit = self.__minimize()
+        self.c = left 
+        res_x, res_fun, res_nit = self._minimize()
 
         # If res.x on the left is classified as the target, return
         if eval_flat_pred(res_x, self.model) == self.target_class:        
@@ -116,7 +117,7 @@ class Attack:
                   end="\r")
             sys.stdout.flush()
             
-            res_x, res_fun, res_nit = self.__minimize()
+            res_x, res_fun, res_nit = self._minimize()
 
             # If attack succeeds, move right to the middle. If it doesn't, move
             # the left to the middle
@@ -132,11 +133,11 @@ class Attack:
         self.res['nit'] = res_nit
         return SUCCESS
 
-    def __fun(
+    def _fun(
             self,
             x: np.ndarray
         ) -> tuple[float, np.ndarray]:
-        '''Objective function to be minimized by __minimize.'''
+        '''Objective function to be minimized by _minimize.'''
         # Convert the starting point from ndarray to tensor
         x_tensor = tf.convert_to_tensor(x.reshape(-1,28,28,1), dtype=tf.float32)
         x_tensor = tf.Variable(x_tensor, trainable=True)                
@@ -174,11 +175,16 @@ class Attack:
         '''
         Function to save the result of the optimization problem and other variables.
         If `visualize` is set to `True`, it shows the image.
+
+        TODO: refactor this. I don't like it. But it works, I think.
         '''
         if self.res['x'] is None:
             print(f"{tc.FAIL}ERROR{tc.ENDC}: cannot save empty result.")
             return
         
+        # Create the path and its parent directories if it doesn't exist
+        Path(path).mkdir(parents=True, exist_ok=True)
+
         with open(f'{path}/{self.original_class}-to-{self.target_class}.npy', 'wb') as f:
             np.save(f, self.res['x'])
             np.save(f, self.res['fun'])
@@ -197,6 +203,7 @@ class Attack:
         
         if visualize:
             plt.show()
+        plt.close()
 
 
 class SciPyAttack(Attack):
@@ -215,9 +222,9 @@ class SciPyAttack(Attack):
         self.options = options
         self.bounds = [(0.,1.)]*784 # Maybe this shouldn't be hard-coded
 
-    def __minimize(self) -> tuple[np.ndarray, float, int]:
+    def _minimize(self) -> tuple[np.ndarray, float, int]:
         res = minimize(
-            fun=self.__fun,
+            fun=self._fun,
             x0=self.initial_guess,
             method=self.method,
             bounds=self.bounds,
