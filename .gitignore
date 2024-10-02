@@ -18,3 +18,7 @@ tesis.pdf
 __pycache__/
 tmp/
 models/
+
+notes.md
+# I'll store the results of my tests here
+results/

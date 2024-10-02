@@ -93,10 +93,23 @@ def load_mnist_model(path='models/macos/mnist.keras'):
 
     **Note for self**: `path` on Windows is only 'models/mnist.keras'
     '''
-    # TODO: check how to implement this. I can't get this to work
-    #       with the custom `fn` in method `train_nn_mnist`. 
-    #       The workaround for now is to train the model every time.
-    pass
+    num_classes = 10
+    input_shape = (28, 28, 1)
+
+    model = keras.Sequential(
+        [
+            keras.layers.Input(shape=input_shape),
+            keras.layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
+            keras.layers.MaxPooling2D(pool_size=(2, 2)),
+            keras.layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),
+            keras.layers.MaxPooling2D(pool_size=(2, 2)),
+            keras.layers.Flatten(),
+            keras.layers.Dropout(0.5),
+            keras.layers.Dense(num_classes)
+        ]
+    )
+    model.load_weights(path)
+    return model
 
     
 def vis_flat_mnist(x, save=False, filename="fig.png", format="png"):
