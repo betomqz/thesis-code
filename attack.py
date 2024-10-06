@@ -6,6 +6,7 @@ from scipy.optimize import minimize
 import tensorflow as tf
 from utils import eval_flat_pred
 from utils import TextColors as tc
+from optimus import ls_sqp
 from pathlib import Path
 
 
@@ -216,7 +217,8 @@ class SciPyAttack(Attack):
             c_left: float = 0.01,
             c_right: float = 1.0,
             method: str = 'L-BFGS-B',
-            options: dict = None):
+            options: dict = None
+        ):
         super().__init__(model, distance, maxiters_bs, c_left, c_right)
         self.method = method
         self.options = options
@@ -232,3 +234,53 @@ class SciPyAttack(Attack):
             options=self.options
         )
         return res.x, res.fun, res.nit
+
+
+class OptimusAttack(Attack):
+
+    def __init__(
+            self,
+            model,
+            distance: Dist = Dist.L2,
+            maxiters_bs: int = 10,
+            c_left: float = 0.01,
+            c_right: float = 1.0,
+            maxiters_method: int = 1000,
+            eta: float = 0.4,
+            tau: float = 0.7,
+            tol: float = 10e-10
+        ):
+        super().__init__(model, distance, maxiters_bs, c_left, c_right)
+        self.maxiters = maxiters_method
+        self.eta = eta
+        self.tau = tau
+        self.tol = tol
+
+    def _restr(
+            self,
+            x: np.ndarray
+        ) -> tuple[float, np.ndarray]:
+        '''
+        Evaluate the restrictions of the problem: c(x) >= 0.
+
+        Since we want that 0 <= x_i <= 1 for every i, then
+            c(x) = [x_1, x_2, ..., x_n, 1 - x_1, 1 - x_2, ..., 1 - x_n]
+        '''
+        c = np.concatenate([x, 1 - x])
+        A = np.concatenate([np.eye(x.size), -np.eye(x.size)])
+        return c, A
+
+    def _minimize(self) -> tuple[np.ndarray, float, int]:
+        '''Minimize using Line Search Sequential Quadratic Programming'''
+        res_x, _ = ls_sqp(
+            fun=self._fun,
+            restr=self._restr,
+            x_0=self.initial_guess,
+            lam_0=np.ones(2 * self.initial_guess.size),
+            B_0=np.eye(self.initial_guess.size),
+            eta=self.eta,
+            tau=self.tau,
+            maxiters=self.maxiters,
+            tol=self.tol
+        )
+        return res_x, self._fun(res_x), -1 #TODO: return iteration count
