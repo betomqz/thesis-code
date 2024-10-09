@@ -96,6 +96,10 @@ class Attack:
         if eval_flat_pred(res_x, self.model) != self.target_class:
             print(f"{tc.FAIL}ERROR{tc.ENDC}: c={self.c} didn't work.")
             return FAILURE
+        # Else store successful result and continue
+        self.res['x'] = res_x
+        self.res['fun'] = res_fun
+        self.res['nit'] = res_nit
 
         # Evaluate on the left
         self.c = left 
@@ -124,14 +128,14 @@ class Attack:
             # the left to the middle
             if eval_flat_pred(res_x, self.model) == self.target_class: 
                 right = self.c
+                self.res['x'] = res_x
+                self.res['fun'] = res_fun
+                self.res['nit'] = res_nit
             else:
                 left = self.c
             count += 1
 
-        # Store the result and return success
-        self.res['x'] = res_x
-        self.res['fun'] = res_fun
-        self.res['nit'] = res_nit
+        # We can guarantee that we succeeded for at least one c
         return SUCCESS
 
     def _fun(
@@ -248,7 +252,7 @@ class OptimusAttack(Attack):
             maxiters_method: int = 1000,
             eta: float = 0.4,
             tau: float = 0.7,
-            tol: float = 10e-10
+            tol: float = 1e-5
         ):
         super().__init__(model, distance, maxiters_bs, c_left, c_right)
         self.maxiters = maxiters_method
@@ -283,4 +287,5 @@ class OptimusAttack(Attack):
             maxiters=self.maxiters,
             tol=self.tol
         )
-        return res_x, self._fun(res_x), -1 #TODO: return iteration count
+        res_fun, _ = self._fun(res_x)
+        return res_x, res_fun, -1 #TODO: return iteration count
