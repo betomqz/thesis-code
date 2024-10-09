@@ -116,13 +116,16 @@ def int_point_qp(G: np.ndarray,
 
         if alpha == 0:
             if verbose:
-                print(f"WARNING: alpha is 0 for iter {k}")
+                print(f"INT POINT WARNING: alpha is 0 for iter {k}")
             alpha = 0.1
 
         # Update x_k, y_k, and lam_k
         x_k += alpha * d_x
         y_k += alpha * d_y
         lam_k += alpha * d_lam
+
+        # make sigma tend to zero
+        sigma *= 0.8
 
         k += 1
         # TODO: better use a logger.
@@ -137,7 +140,7 @@ def int_point_qp(G: np.ndarray,
                 f" - alpha: {alpha}\n")
 
     if verbose:
-        print(f"WARNING: Maximum number of iterations achieved: {maxiters}")
+        print(f"INT POINT WARNING: Maximum number of iterations achieved: {maxiters}")
     return x_k, y_k, lam_k
 
 
@@ -198,7 +201,8 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
                                        A=A_k, 
                                        b=-c_k,
                                        x_0=np.ones(x_k.size),
-                                       tol=10e-10,
+                                       tol=10e-5,
+                                       maxiters=15,
                                        verbose=False)
 
         # Set p_lambda <- lambda_hat - lambda_k
