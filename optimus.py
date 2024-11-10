@@ -23,6 +23,28 @@ def step_length_binary_search(y, d_y, tau, iters=7):
     return low  # Return the highest valid alpha found
 
 
+def find_alpha(y: np.ndarray,
+               d_y: np.ndarray,
+               tau: float):
+    '''
+    Find maximum alpha in (0,1] such that y + alpha * d_y >= (1 - tau) * y
+    '''
+
+    # Calculate - tau * y / d_y except when d_y is 0. If this is the case,
+    # simply choose 1.
+    props = np.where(d_y != 0, - tau * np.divide(y, d_y, where=(d_y != 0)), 1.)
+
+    # If d_y > 0, we need alpha >= - tau * y / d_y, so there's an error if
+    # - tau * y / d_y is greater than 1.
+    if np.any((d_y > 0) & (props > 1.)):
+        return 0.0
+    # else choose 1. in this case
+    props = np.where(d_y > 0, 1., props)
+
+    # Return the minimum valid value
+    return np.min([1., np.min(props)])
+
+
 def int_point_qp(G: np.ndarray,
                  c: np.ndarray,
                  A: np.ndarray,
@@ -110,8 +132,10 @@ def int_point_qp(G: np.ndarray,
         # TODO: This is completely arbitrary but I don't want to think of
         #       something else rn. Seems legit.
         tau_k = 1 / (1 + np.exp(-0.1 * k))
-        alpha_pri = step_length_binary_search(y_k, d_y, tau_k)
-        alpha_dual = step_length_binary_search(lam_k, d_lam, tau_k)
+        alpha_pri = find_alpha(y_k, d_y, tau_k)
+        alpha_dual = find_alpha(lam_k, d_lam, tau_k)
+        # alpha_dual = step_length_binary_search(lam_k, d_lam, tau_k)
+        # alpha_pri = step_length_binary_search(y_k, d_y, tau_k)
         alpha = np.min([alpha_pri, alpha_dual])
 
         if alpha == 0:
