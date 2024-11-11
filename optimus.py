@@ -3,26 +3,6 @@ from scipy import linalg as la
 from typing import Callable
 
 
-def step_length_binary_search(y, d_y, tau, iters=7):
-    '''
-    Find maximum alpha in (0,1] such that y + alpha * d_y >= (1 - tau) * y
-    using binary search.
-    '''
-    low, high = 0, 1
-    i = 0
-
-    while i < iters:
-        mid = (low + high) / 2
-        # Check if y + alpha * d_y >= (1 - tau) * y element-wise
-        if np.all(y + mid * d_y >= (1 - tau) * y):
-            low = mid  # If condition is satisfied, search in the upper half
-        else:
-            high = mid  # Otherwise, search in the lower half
-        i += 1
-
-    return low  # Return the highest valid alpha found
-
-
 def find_alpha(y: np.ndarray,
                d_y: np.ndarray,
                tau: float):
@@ -134,8 +114,6 @@ def int_point_qp(G: np.ndarray,
         tau_k = 1 / (1 + np.exp(-0.1 * k))
         alpha_pri = find_alpha(y_k, d_y, tau_k)
         alpha_dual = find_alpha(lam_k, d_lam, tau_k)
-        # alpha_dual = step_length_binary_search(lam_k, d_lam, tau_k)
-        # alpha_pri = step_length_binary_search(y_k, d_y, tau_k)
         alpha = np.min([alpha_pri, alpha_dual])
 
         if alpha == 0:
