@@ -226,7 +226,7 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
         deriv = np.dot(grad_k, p_k) - mu_k * c_k_norm
 
         count_ls = 0
-        while count_ls < 15:
+        while count_ls < 30:
             # Evaluate possible f_k+1, ∇f_k+1, c_k+1, A_k+1
             s_k = alpha_k * p_k
             f_k, grad_k = fun(x_k + s_k)
@@ -282,7 +282,7 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
             mu_k = 1
 
         # If something went wrong with line search, warn
-        if count_ls == 15:
+        if count_ls == 30:
             print("WARNING: maximum number of iterations achieved for line "
                   "search")
         
