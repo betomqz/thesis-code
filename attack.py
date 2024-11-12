@@ -252,7 +252,7 @@ class OptimusAttack(Attack):
             maxiters_method: int = 1000,
             eta: float = 0.4,
             tau: float = 0.7,
-            tol: float = 1e-5
+            tol: float = 1.1
         ):
         super().__init__(model, distance, maxiters_bs, c_left, c_right)
         self.maxiters = maxiters_method
