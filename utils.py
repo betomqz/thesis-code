@@ -127,6 +127,9 @@ def vis_flat_mnist(x, save=False, filename="fig.png", format="png"):
 
 
 def eval_flat_pred(x, model):
+    if x is None:
+        return -1
+        
     temp = x.reshape(28,28,1)
     return np.argmax(model.predict(temp[np.newaxis,...],verbose = 0))
 
