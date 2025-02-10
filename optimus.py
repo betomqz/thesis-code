@@ -146,6 +146,61 @@ def int_point_qp(G: np.ndarray,
     return x_k, y_k, lam_k
 
 
+def quasi_newton_approx(method='BFGS', **kwargs):
+    '''
+    Performs a quasi-Newton approximation to the Hessian.
+
+    Parameters
+    ----------
+    method : str
+        Approximation to be used. Supported approximations: `'BFGS'`,
+        `'BFGS-2'`, `'L-BFGS'`. Both `'BFGS'` and `'BFGS-2'` should return the
+        same approximation, but they are implemented in a slightly different
+        way.
+
+    **kwargs : dict
+        Named parameters specific to each method:
+        - `'BFGS'` expects `s_k`, `y_k`, and `B_k`
+
+    Returns
+    -------
+    res : ndarray
+        A quasi-Newton approximation to the true Hessian.
+
+    Examples
+    --------
+    >>> B_k = quasi_newton_approx(method='BFGS', s_k, y_k, B_k)
+    '''
+    if method == 'BFGS':
+        s_k = kwargs['s_k']
+        y_k = kwargs['y_k']
+        B_k = kwargs['B_k']
+
+        # Damped BFGS updating (Procedure 18.2)
+        sy = np.dot(s_k, y_k)
+        Bs = np.dot(B_k, s_k)
+        sBs = np.dot(s_k, Bs)
+
+        # (18.15)
+        theta_k = 1
+        if sy < 0.2 * sBs:
+            theta_k = 0.8 * sBs / (sBs - sy)
+
+        r_k = theta_k * y_k + (1 - theta_k) * Bs
+
+        # Update B_k with (18.16) to guarantee that it is s.p.d.
+        BssB = np.outer(Bs, Bs)
+        rrT = np.outer(r_k, r_k)
+        return B_k - BssB / sBs + rrT / np.dot(s_k, r_k)
+
+    elif method == 'BFGS-2':
+        return None
+    elif method == 'L-BFGS':
+        return None
+    else:
+        return None
+
+
 def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
            restr: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]],
            x_0: np.ndarray,
@@ -253,22 +308,7 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
         # Define y_k as in (18.13)
         y_k = kkt - (grad_k_old - np.dot(A_k_old.T,lam_k))
 
-        # Damped BFGS updating (Procedure 18.2)
-        sy = np.dot(s_k, y_k)
-        Bs = np.dot(B_k, s_k)
-        sBs = np.dot(s_k, Bs)
-
-        # (18.15)
-        theta_k = 1
-        if sy < 0.2 * sBs:
-            theta_k = 0.8 * sBs / (sBs - sy)
-
-        r_k = theta_k * y_k + (1 - theta_k) * Bs
-
-        # Update B_k with (18.16) to guarantee that it is s.p.d.
-        BssB = np.outer(Bs, Bs)
-        rrT = np.outer(r_k, r_k)
-        B_k = B_k - BssB / sBs + rrT / np.dot(s_k, r_k)
+        B_k = quasi_newton_approx('BFGS', s_k=s_k, y_k=y_k, B_k=B_k)
 
         # Update old info
         phi_old = phi

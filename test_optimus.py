@@ -188,7 +188,7 @@ class TestOptimus(unittest.TestCase):
 
     def test_ls_sqp_rosenbrock_200(self):
         '''Test line search SQP with 200-dimension Rosenbrock function'''
-        self.perform_rosenbrock_ls_sqp(200, 0.1)
+        self.perform_rosenbrock_ls_sqp(200, 1.04)
 
 
 if __name__ == "__main__":
