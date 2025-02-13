@@ -61,15 +61,15 @@ def int_point_qp(G: np.ndarray,
     x_k = x_0
     e = np.ones(m)
     if y_0 is None:
-        y_k = np.ones(m) 
+        y_k = np.ones(m)
     else:
         y_k = y_0
     if lam_0 is None:
-        lam_k = np.ones(m) 
+        lam_k = np.ones(m)
     else:
         lam_k = lam_0
 
-    while k < maxiters: 
+    while k < maxiters:
         # Matrix M is the left side of (16.58)
         M = np.zeros((n+2*m, n+2*m))
         Y = np.diag(y_k)
@@ -99,8 +99,8 @@ def int_point_qp(G: np.ndarray,
         d_y = deltas[n:n+m]
         d_lam = deltas[n+m:]
 
-        # If stopping criteria is met, return. 
-        if la.norm(d_x) <= tol:
+        # If stopping criteria is met, return.
+        if la.norm(d_x, np.infty) <= tol:
             if verbose:
                 print("Solution found")
                 print(f"iter {k}:\n - x: {x_k}\n - y: {y_k}\n - l: {lam_k}")
@@ -136,9 +136,9 @@ def int_point_qp(G: np.ndarray,
                 f" - x: {x_k}\n" +
                 f" - y: {y_k}\n" +
                 f" - l: {lam_k}\n" +
-                f" - ||d_x||: {la.norm(d_x)}\n" +
-                f" - ||d_y||: {la.norm(d_y)}\n" +
-                f" - ||d_lam||: {la.norm(d_lam)}\n" +
+                f" - ||d_x||_infty: {la.norm(d_x, np.infty)}\n" +
+                f" - ||d_y||_infty: {la.norm(d_y, np.infty)}\n" +
+                f" - ||d_lam||_infty: {la.norm(d_lam, np.infty)}\n" +
                 f" - alpha: {alpha}\n")
 
     if verbose:
@@ -196,11 +196,11 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
 
     # Repeat until convergence test is satisfied
     while k < maxiters:
-        # Compute p_k by solving (18.11); 
+        # Compute p_k by solving (18.11);
         # let lambda_hat be the corresponding mult.
-        p_k, _, lam_hat = int_point_qp(G=B_k, 
+        p_k, _, lam_hat = int_point_qp(G=B_k,
                                        c=grad_k,
-                                       A=A_k, 
+                                       A=A_k,
                                        b=-c_k,
                                        x_0=np.ones(x_k.size),
                                        tol=10e-5,
@@ -220,7 +220,7 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
 
         # Set alpha_k <- 1
         alpha_k = 1
-        
+
         # Compute the directional derivative of last phi
         deriv = np.dot(grad_k, p_k) - mu_k * c_k_norm
 
@@ -284,11 +284,11 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
         if count_ls == 30:
             print("WARNING: maximum number of iterations achieved for line "
                   "search")
-        
+
         k += 1
-        # If stopping criteria is met, return. 
-        # TODO: is this really the best criteria?
-        if la.norm(kkt) <= tol:
+        # If stopping criteria is met, return.
+        kkt_norm = la.norm(kkt, np.infty)
+        if kkt_norm <= tol:
             print("Solution found")
             print(f"iter {k}:\n - x: {x_k}\n - l: {lam_k}")
             return x_k, lam_k
@@ -297,7 +297,7 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
         print(f"iter {k}:\n" +
               f" - x: {x_k}\n" +
               f" - l: {lam_k}\n" +
-              f" - ||kkt||: {la.norm(kkt)}\n" +
+              f" - ||kkt||: {kkt_norm}\n" +
               f" - alpha_k: {alpha_k}\n")
 
     print(f"WARNING: maximum number of iterations achieved: {maxiters}")
