@@ -62,7 +62,7 @@ class TestOptimus(unittest.TestCase):
         self.perform_int_point_random(100, tol=1.63)
     
     def test_int_point_qp_random_200(self):
-        '''Test interior point method with random values for n=20'''
+        '''Test interior point method with random values for n=200'''
         self.perform_int_point_random(200, tol=2.6)
 
     def test_int_point_nocedal_475(self):
@@ -166,7 +166,7 @@ class TestOptimus(unittest.TestCase):
             eta=0.4,
             tau=0.7,
             maxiters=1000,
-            tol=10e-4)
+            tol=10e-2)
 
         npt.assert_allclose(x, np.ones(n), atol=tol)
 
