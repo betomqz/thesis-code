@@ -215,9 +215,8 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
         if c_k_norm > 0:
             mess = np.dot(grad_k, p_k) + 0.5 * np.dot(p_k, np.dot(B_k, p_k))
             mess /= (1 - rho) * c_k_norm
-            while mu_k < mess and count_mu < 15:
-                mu_k *= 2
-                count_mu += 1
+            if mu_k < mess:
+                mu_k = mess + 1e-4
 
         # Set alpha_k <- 1
         alpha_k = 1
