@@ -1,4 +1,5 @@
 import numpy as np
+from collections import deque
 from scipy import linalg as la
 from typing import Callable
 
@@ -196,7 +197,29 @@ def quasi_newton_approx(method='BFGS', **kwargs):
     elif method == 'BFGS-2':
         return None
     elif method == 'L-BFGS':
-        return None
+        S_k = kwargs['S_k']
+        Y_k = kwargs['Y_k']
+        n = S_k.shape[0]
+
+        sTy = np.dot(S_k.T, Y_k)
+        L_k = np.tril(sTy, -1)
+        D_k = np.diag(np.diag(sTy))
+
+        Y_k_mius_1 = Y_k[:,-1]
+        delta_k = np.dot(Y_k_mius_1, Y_k_mius_1) / np.dot(S_k[:,-1], Y_k_mius_1)
+
+        M = np.block([
+            [delta_k * np.dot(S_k.T, S_k), L_k],
+            [L_k.T, -D_k]
+        ])
+
+        dSY = np.block([
+            [delta_k * S_k, Y_k]
+        ])
+
+        X = la.solve(M, dSY.T)
+
+        return delta_k * np.eye(n) - np.dot(dSY, X)
     else:
         return None
 
@@ -236,6 +259,10 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
 
     # Choose initial nxn s.p.d. Hessian approximation B_0
     B_k = B_0
+
+    # Queues to store S_k and Y_k
+    S_k = deque(maxlen=10)
+    Y_k = deque(maxlen=10)
 
     # mu_k and rho for (18.36)
     rho = 0.1
@@ -308,7 +335,15 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
         # Define y_k as in (18.13)
         y_k = kkt - (grad_k_old - np.dot(A_k_old.T,lam_k))
 
-        B_k = quasi_newton_approx('BFGS', s_k=s_k, y_k=y_k, B_k=B_k)
+        S_k.append(s_k)
+        Y_k.append(y_k)
+
+        # B_k = quasi_newton_approx('BFGS', s_k=s_k, y_k=y_k, B_k=B_k)
+        B_k = quasi_newton_approx(
+            method='L-BFGS',
+            S_k=np.array(S_k).T,
+            Y_k=np.array(Y_k).T
+        )
 
         # Update old info
         phi_old = phi
