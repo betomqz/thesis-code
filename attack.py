@@ -282,6 +282,7 @@ class OptimusAttack(Attack):
             x_0=self.initial_guess,
             lam_0=np.ones(2 * self.initial_guess.size),
             B_0=np.eye(self.initial_guess.size),
+            hessian='L-BFGS',
             eta=self.eta,
             tau=self.tau,
             maxiters=self.maxiters,
