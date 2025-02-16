@@ -1,4 +1,5 @@
 import numpy as np
+from collections import deque
 from scipy import linalg as la
 from typing import Callable
 
@@ -146,29 +147,156 @@ def int_point_qp(G: np.ndarray,
     return x_k, y_k, lam_k
 
 
+def _bfgs(s_k: np.ndarray, y_k: np.ndarray, B_k: np.ndarray) -> np.ndarray:
+    '''
+    Calculates an update to the Hessian using a damped BFGS approach described
+    by Nocedal in Procedure 18.2 to guarantee that the update is s.p.d.
+
+    Parameters
+    ----------
+    s_k : ndarray
+        Vector representing the change for x in current iteration (alpha_k * p_k)
+
+    y_k : ndarray
+        Vector representing the change for the lagrangian in current iteration
+
+    B_k : ndarray
+        Approximation to be updated.
+
+    Returns
+    -------
+    B_k : ndarray
+        Updated approximation to the Hessian
+    '''
+    # Damped BFGS updating (Procedure 18.2)
+    sy = np.dot(s_k, y_k)
+    Bs = np.dot(B_k, s_k)
+    sBs = np.dot(s_k, Bs)
+
+    # (18.15)
+    theta_k = 1
+    if sy < 0.2 * sBs:
+        theta_k = 0.8 * sBs / (sBs - sy)
+
+    r_k = theta_k * y_k + (1 - theta_k) * Bs
+
+    # Update B_k with (18.16) to guarantee that it is s.p.d.
+    BssB = np.outer(Bs, Bs)
+    rrT = np.outer(r_k, r_k)
+    return B_k - BssB / sBs + rrT / np.dot(s_k, r_k)
+
+
+def _l_bfgs(S_k: np.ndarray, Y_k: np.ndarray) -> np.ndarray:
+    '''
+    Calculates an approximation `B_k` to the Hessian using a limited-memory
+    updating approach described by Nocedal (eq. 7.29)
+
+    Parameters
+    ----------
+    S_k : ndarray
+        n x m matrix with the m most recent s_i vectors
+
+    Y_k : ndarray
+        n x m matrix with the m most recent y_i vectors
+
+    Returns
+    -------
+    B_k : ndarray
+        Approximation to the Hessian
+    '''
+    n = S_k.shape[0]
+
+    # L_k and D_k are m x m matrices adapted from (7.26) & (7.27)
+    sTy = np.dot(S_k.T, Y_k)
+    L_k = np.tril(sTy, -1)
+    D_k = np.diag(np.diag(sTy))
+
+    # delta_k is the inverse of (7.20)
+    Y_k_mius_1 = Y_k[:,-1]
+    delta_k = np.dot(Y_k_mius_1, Y_k_mius_1) / np.dot(S_k[:,-1], Y_k_mius_1)
+
+    # middle matrix of dimension 2*m in (7.29)
+    M = np.block([
+        [delta_k * np.dot(S_k.T, S_k), L_k],
+        [L_k.T, -D_k]
+    ])
+
+    dSY = np.block([
+        [delta_k * S_k, Y_k]
+    ])
+
+    # calculate M^{-1} dSY^T
+    X = la.solve(M, dSY.T)
+
+    return delta_k * np.eye(n) - np.dot(dSY, X)
+
+
 def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
            restr: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]],
            x_0: np.ndarray,
            lam_0: np.ndarray,
            B_0: np.ndarray,
+           hessian: str | Callable[[np.ndarray], np.ndarray],
            eta: float,
            tau: float,
            maxiters: int,
            tol: np.float64 = np.finfo(np.float64).eps
            ) -> tuple[np.ndarray, np.ndarray]:
     '''
-    Parameters:
-    - `fun` is the function to minimize. Must return f(x) and its gradient
-    - `retr` are the restrictions (denoted by c(x) in Nocedal). Must return
-             c(x) and the Jacobian as well (denoted by A(x) in Nocedal).
-    - `x_0` is the starting point
-    - `lam_0` is the initial guess for the multipliers
-    - `B_0` is the initial guess for the Hessian matrix. Must be s.p.d.
-    - `eta` must lie strictly between 0 and 0.5
-    - `tau` must lie strictly between 0 and 1
-    - `maxiters` is the maximum number of iterations allowed
-    - `tol` is the tolerance for the convergence test
+    Solves a constrained optimization problem using Sequential Quadratic
+    Programming (SQP) with a line search approach.
+
+    Parameters
+    ----------
+    fun : callable
+        Function to minimize. Must return f(x) and its gradient.
+
+    restr : callable
+        Constraint function (denoted as c(x) in Nocedal). Must return c(x) and
+        the Jacobian (denoted as A(x) in Nocedal).
+
+    x_0 : ndarray
+        Initial point for the optimization.
+
+    lam_0 : ndarray
+        Initial guess for the Lagrange multipliers.
+
+    B_0 : ndarray
+        Initial approximation of the Hessian matrix. Must be symmetric positive
+        definite (s.p.d.).
+
+    hessian : str or callable
+        Approximation method for the Hessian matrix. Supported options:
+        - 'BFGS' : Damped BFGS method.
+        - 'L-BFGS' : Limited-memory BFGS method.
+        - A callable function if the exact Hessian is available.
+
+    eta : float
+        Step size parameter. Must be strictly between 0 and 0.5.
+
+    tau : float
+        Line search parameter. Must be strictly between 0 and 1.
+
+    maxiters : int
+        Maximum number of iterations allowed.
+
+    tol : float, optional
+        Tolerance for the convergence test. Default is machine epsilon for
+        `np.float64`.
+
+    Returns
+    -------
+    x_opt : ndarray
+        The optimal solution found by the algorithm, or the value at the last
+        iteration.
+
+    lam_opt : ndarray
+        The corresponding Lagrange multipliers at the optimal point.
     '''
+
+    # Verify valid method for quasi-Newton approx
+    if (not callable(hessian)) and hessian != 'BFGS' and hessian != 'L-BFGS':
+        raise Exception("Invalid method for quasi-Newton approximation.")
 
     # Evaluate f_0, ∇f_0, c_0, A_0;
     x_k = x_0
@@ -181,6 +309,10 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
 
     # Choose initial nxn s.p.d. Hessian approximation B_0
     B_k = B_0
+
+    # Queues to store S_k and Y_k
+    S_k = deque(maxlen=10)
+    Y_k = deque(maxlen=10)
 
     # mu_k and rho for (18.36)
     rho = 0.1
@@ -225,7 +357,7 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
         deriv = np.dot(grad_k, p_k) - mu_k * c_k_norm
 
         count_ls = 0
-        while count_ls < 30:
+        while count_ls < 50:
             # Evaluate possible f_k+1, ∇f_k+1, c_k+1, A_k+1
             s_k = alpha_k * p_k
             f_k, grad_k = fun(x_k + s_k)
@@ -253,22 +385,18 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
         # Define y_k as in (18.13)
         y_k = kkt - (grad_k_old - np.dot(A_k_old.T,lam_k))
 
-        # Damped BFGS updating (Procedure 18.2)
-        sy = np.dot(s_k, y_k)
-        Bs = np.dot(B_k, s_k)
-        sBs = np.dot(s_k, Bs)
-
-        # (18.15)
-        theta_k = 1
-        if sy < 0.2 * sBs:
-            theta_k = 0.8 * sBs / (sBs - sy)
-
-        r_k = theta_k * y_k + (1 - theta_k) * Bs
-
-        # Update B_k with (18.16) to guarantee that it is s.p.d.
-        BssB = np.outer(Bs, Bs)
-        rrT = np.outer(r_k, r_k)
-        B_k = B_k - BssB / sBs + rrT / np.dot(s_k, r_k)
+        if hessian == 'BFGS':
+            B_k = _bfgs(s_k=s_k, y_k=y_k, B_k=B_k)
+        elif hessian == 'L-BFGS':
+            S_k.append(s_k)
+            Y_k.append(y_k)
+            B_k = _l_bfgs(
+                S_k=np.array(S_k).T,
+                Y_k=np.array(Y_k).T
+            )
+        else:
+            # We know it must be a callable
+            B_k = hessian(x_k)
 
         # Update old info
         phi_old = phi

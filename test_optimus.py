@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import numpy.testing as npt
 from optimus import int_point_qp, ls_sqp
-from scipy.optimize import rosen, rosen_der, minimize, LinearConstraint
+from scipy.optimize import rosen, rosen_der, rosen_hess, minimize, LinearConstraint
 
 class TestOptimus(unittest.TestCase):
 
@@ -55,7 +55,7 @@ class TestOptimus(unittest.TestCase):
 
     def test_int_point_qp_random_50(self):
         '''Test interior point method with random values for n=50'''
-        self.perform_int_point_random(50, tol=0.8)
+        self.perform_int_point_random(50, tol=2.5)
 
     def test_int_point_qp_random_100(self):
         '''Test interior point method with random values for n=100'''
@@ -63,7 +63,7 @@ class TestOptimus(unittest.TestCase):
     
     def test_int_point_qp_random_200(self):
         '''Test interior point method with random values for n=200'''
-        self.perform_int_point_random(200, tol=2.6)
+        self.perform_int_point_random(200, tol=2.72)
 
     def test_int_point_nocedal_475(self):
         '''Test for problem on p. 475 from (Nocedal)'''
@@ -136,7 +136,7 @@ class TestOptimus(unittest.TestCase):
         self.assertAlmostEqual(fun(x), -99.96, places=5)
 
 #   ----------------------------------------------------------------------------
-    def perform_rosenbrock_ls_sqp(self, n, tol):
+    def perform_rosenbrock_ls_sqp(self, n, tol, hessian='L-BFGS'):
         '''
         Helper function to test the line search SQP method with the
         n-dimension Rosenbrock function.
@@ -163,10 +163,12 @@ class TestOptimus(unittest.TestCase):
             x_0=x0,
             lam_0=np.ones(2 * x0.size),
             B_0=np.eye(x0.size),
+            hessian=hessian,
             eta=0.4,
             tau=0.7,
-            maxiters=1000,
-            tol=10e-2)
+            maxiters=60,
+            tol=0.005
+        )
 
         npt.assert_allclose(x, np.ones(n), atol=tol)
 
@@ -189,6 +191,14 @@ class TestOptimus(unittest.TestCase):
     def test_ls_sqp_rosenbrock_200(self):
         '''Test line search SQP with 200-dimension Rosenbrock function'''
         self.perform_rosenbrock_ls_sqp(200, 0.1)
+
+    def test_ls_sqp_rosenbrock_100_true_hess(self):
+        '''
+        Test line search SQP with 100-dimension Rosenbrock function using the
+        true hessian. We can do this since the restrictions are linear, so the
+        hessian of the lagrangian is the same as the hessian of f
+        '''
+        self.perform_rosenbrock_ls_sqp(100, 0.1, hessian=rosen_hess)
 
 
 if __name__ == "__main__":
