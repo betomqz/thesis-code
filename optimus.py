@@ -4,7 +4,7 @@ from scipy import linalg as la
 from typing import Callable
 
 
-def find_alpha(y: np.ndarray,
+def _find_alpha(y: np.ndarray,
                d_y: np.ndarray,
                tau: float):
     '''
@@ -17,6 +17,7 @@ def find_alpha(y: np.ndarray,
 
     # If d_y > 0, we need alpha >= - tau * y / d_y, so there's an error if
     # - tau * y / d_y is greater than 1.
+    # TODO: I think this cases comes down to if any element in y < 0.
     if np.any((d_y > 0) & (props > 1.)):
         return 0.0
     # else choose 1. in this case
@@ -76,25 +77,51 @@ def int_point_qp(G: np.ndarray,
         Y = np.diag(y_k)
         Lam = np.diag(lam_k)
 
-        M[:n,:n] = G
-        M[:n,n+m:] = -A.T
-        M[n:n+m,:n] = A
-        M[n:n+m,n:n+m] = -np.eye(m)
-        M[n+m:,n:n+m] = Lam
-        M[n+m:,n+m:] = Y
+        M = np.block([
+            [G, np.zeros((n,m)), -A.T],
+            [A, -np.eye(m), np.zeros((m,m))],
+            [np.zeros((m,n)), Lam, Y]
+        ])
 
-        # Right side of (16.58)
-        mu = np.dot(y_k,lam_k) / m
+        # Right side of (16.58) with sigma = 0
         r_d = np.dot(G,x_k) - np.dot(A.T,lam_k) + c
         r_p = np.dot(A,x_k) - y_k - b
-        pert = -np.dot(np.dot(Lam,Y),e) + sigma * mu * e
+        DYe = np.dot(np.dot(Lam, Y), e)
 
         r = np.zeros(n+2*m)
         r[:n] = - r_d
         r[n:n+m] = -r_p
-        r[n+m:] = pert
+        r[n+m:] = -DYe
 
-        # Solve (16.58)
+        # Solve (16.58) with sigma = 0
+        deltas_aff = la.solve(M,r)
+        d_x_aff = deltas_aff[:n]
+        d_y_aff = deltas_aff[n:n+m]
+        d_lam_aff = deltas_aff[n+m:]
+
+        # Caclulate mu
+        mu = np.dot(y_k, lam_k) / m
+
+        # Calculate alpha_aff
+        alpha_aff = _find_alpha(
+            np.concatenate((y_k, lam_k)),
+            np.concatenate((d_y_aff, d_lam_aff)),
+            1
+        )
+
+        # Calculate mu_aff
+        mu_aff = np.dot(y_k+alpha_aff*d_y_aff, lam_k+alpha_aff*d_lam_aff) / m
+
+        # Set centering parameter
+        sigma = (mu_aff / mu) ** 3
+
+        # Right side of (16.67)
+        Delta_Lam_aff = np.diag(d_lam_aff)
+        Delta_Y_aff = np.diag(d_y_aff)
+        pert = -np.dot(np.dot(Delta_Lam_aff, Delta_Y_aff), e) + sigma * mu * e
+        r[n+m:] = -DYe + pert
+
+        # Solve (16.67)
         deltas = la.solve(M,r)
         d_x = deltas[:n]
         d_y = deltas[n:n+m]
@@ -113,8 +140,8 @@ def int_point_qp(G: np.ndarray,
         # TODO: This is completely arbitrary but I don't want to think of
         #       something else rn. Seems legit.
         tau_k = 1 / (1 + np.exp(-0.1 * k))
-        alpha_pri = find_alpha(y_k, d_y, tau_k)
-        alpha_dual = find_alpha(lam_k, d_lam, tau_k)
+        alpha_pri = _find_alpha(y_k, d_y, tau_k)
+        alpha_dual = _find_alpha(lam_k, d_lam, tau_k)
         alpha = np.min([alpha_pri, alpha_dual])
 
         if alpha == 0:
@@ -127,16 +154,13 @@ def int_point_qp(G: np.ndarray,
         y_k += alpha * d_y
         lam_k += alpha * d_lam
 
-        # make sigma tend to zero
-        sigma *= 0.8
-
         k += 1
         # TODO: better use a logger.
         if verbose:
             print(f"iter {k}:\n" +
-                f" - x: {x_k}\n" +
-                f" - y: {y_k}\n" +
-                f" - l: {lam_k}\n" +
+                # f" - x: {x_k}\n" +
+                # f" - y: {y_k}\n" +
+                # f" - l: {lam_k}\n" +
                 f" - ||d_x||_infty: {la.norm(d_x, np.infty)}\n" +
                 f" - ||d_y||_infty: {la.norm(d_y, np.infty)}\n" +
                 f" - ||d_lam||_infty: {la.norm(d_lam, np.infty)}\n" +
