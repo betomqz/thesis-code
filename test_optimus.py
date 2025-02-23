@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import numpy.testing as npt
-from optimus import int_point_qp, ls_sqp
+from optimus import int_point_qp, ls_sqp, _find_alpha
 from scipy.optimize import rosen, rosen_der, rosen_hess, minimize, LinearConstraint
 
 class TestOptimus(unittest.TestCase):
@@ -10,16 +10,15 @@ class TestOptimus(unittest.TestCase):
     def setUpClass(cls):
         np.random.seed(7679448)
 
-    def perform_int_point_random(self, n, tol):
+    def perform_int_point_random(self, n, tol=0.01, verbose=False):
         '''Helper function to test the interior point method with random values.'''
         m = 2 * n
 
         G = np.random.rand(n,n)
         G = np.dot(G,G.T)
         c = np.random.rand(n) * 10 - 5
-        A = np.random.rand(n,n) * 10 - 5
-        A = np.vstack((A, np.eye(n)))
-        b = np.concatenate((np.random.rand(n), np.zeros(n)))
+        A = np.concatenate([np.eye(n), -np.eye(n)])
+        b = np.concatenate([-np.ones(n), -2*np.ones(n)])
 
         def fun(x):
             '''Function to minimize for int_point'''
@@ -38,32 +37,39 @@ class TestOptimus(unittest.TestCase):
             A=A,
             b=b,
             x_0=x0.copy(),
-            sigma=0.1,
             tol=10e-5,
-            verbose=False
+            verbose=verbose
         )
+
+        if verbose:
+            print(f"SciPy: {res.x}")
+            print(f"Optimus: {x}")
+            print(f"SciPy: {fun(res.x)}")
+            print(f"Optimus: {fun(x)}")
+            print(f"SciPy: {np.linalg.norm(A@res.x - b, np.infty)}")
+            print(f"Optimus: {np.linalg.norm(A@x - b, np.infty)}")
 
         npt.assert_allclose(x, res.x, atol=tol)
 
     def test_int_point_qp_random_10(self):
         '''Test interior point method with random values for n=10'''
-        self.perform_int_point_random(10, tol=0.01)
+        self.perform_int_point_random(10)
 
     def test_int_point_qp_random_20(self):
         '''Test interior point method with random values for n=20'''
-        self.perform_int_point_random(20, tol=0.42)
+        self.perform_int_point_random(20)
 
     def test_int_point_qp_random_50(self):
         '''Test interior point method with random values for n=50'''
-        self.perform_int_point_random(50, tol=2.5)
+        self.perform_int_point_random(50)
 
     def test_int_point_qp_random_100(self):
         '''Test interior point method with random values for n=100'''
-        self.perform_int_point_random(100, tol=1.63)
+        self.perform_int_point_random(100)
     
     def test_int_point_qp_random_200(self):
         '''Test interior point method with random values for n=200'''
-        self.perform_int_point_random(200, tol=2.72)
+        self.perform_int_point_random(200)
 
     def test_int_point_nocedal_475(self):
         '''Test for problem on p. 475 from (Nocedal)'''
@@ -79,8 +85,9 @@ class TestOptimus(unittest.TestCase):
         b = np.array([-2,-6,-2,0,0])
 
         x0 = np.array([2.,0.])
-        x, y, lam = int_point_qp(G=G, c=c, A=A, b=b, x_0=x0.copy(), sigma=0.1,
-                                tol=10e-10, verbose=False)
+        x, y, lam = int_point_qp(
+            G=G, c=c, A=A, b=b, x_0=x0.copy(), tol=10e-10, verbose=False
+        )
         
         npt.assert_allclose(x, np.array([1.4,1.7]))
 
@@ -123,17 +130,41 @@ class TestOptimus(unittest.TestCase):
             return x[0]**2/100 + x[1]**2 - 100
         
         x, y, lam = int_point_qp(
-            G=G,
-            c=c,
-            A=A,
-            b=b,
-            x_0=x0.copy(),
-            sigma=0.1,
-            tol=10e-5,
-            verbose=False
+            G=G, c=c, A=A, b=b, x_0=x0.copy(), tol=10e-5, verbose=False
         )
 
         self.assertAlmostEqual(fun(x), -99.96, places=5)
+
+    def test_positive_direction(self):
+        '''Test when d_y is positive and should return a valid alpha'''
+        y = np.array([1.0, 2.0, 3.0])
+        d_y = np.array([0.5, 1.0, 1.5])
+        tau = 0.1
+        expected = 1.0
+        self.assertAlmostEqual(_find_alpha(y, d_y, tau), expected)
+
+    def test_negative_direction(self):
+        '''Test when d_y is negative'''
+        y = np.array([1.0, 2.0, 3.0])
+        d_y = np.array([-0.5, -1.0, -1.5])
+        tau = 0.1
+        expected = 0.2
+        self.assertAlmostEqual(_find_alpha(y, d_y, tau), expected)
+
+    def test_d_y_zeros(self):
+        '''Test when d_y contains zeros'''
+        y = np.array([1.0, 2.0, 3.0])
+        d_y = np.array([0.0, 1.0, -1.0])
+        tau = 0.1
+        expected = 0.3
+        self.assertAlmostEqual(_find_alpha(y, d_y, tau), expected)
+
+    def test_invalid_case(self):
+        '''Test when d_y > 0 and -tau * y / d_y > 1, which should return 0'''
+        y = np.array([-1.0, 2.0, 3.0])
+        d_y = np.array([0.01, 0.02, 0.03])
+        tau = 0.1
+        self.assertEqual(_find_alpha(y, d_y, tau), 0.0)
 
 #   ----------------------------------------------------------------------------
     def perform_rosenbrock_ls_sqp(self, n, tol, hessian='L-BFGS'):
