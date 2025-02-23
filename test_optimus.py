@@ -37,7 +37,6 @@ class TestOptimus(unittest.TestCase):
             A=A,
             b=b,
             x_0=x0.copy(),
-            sigma=0.1,
             tol=10e-5,
             verbose=verbose
         )
@@ -86,8 +85,9 @@ class TestOptimus(unittest.TestCase):
         b = np.array([-2,-6,-2,0,0])
 
         x0 = np.array([2.,0.])
-        x, y, lam = int_point_qp(G=G, c=c, A=A, b=b, x_0=x0.copy(), sigma=0.1,
-                                tol=10e-10, verbose=False)
+        x, y, lam = int_point_qp(
+            G=G, c=c, A=A, b=b, x_0=x0.copy(), tol=10e-10, verbose=False
+        )
         
         npt.assert_allclose(x, np.array([1.4,1.7]))
 
@@ -130,14 +130,7 @@ class TestOptimus(unittest.TestCase):
             return x[0]**2/100 + x[1]**2 - 100
         
         x, y, lam = int_point_qp(
-            G=G,
-            c=c,
-            A=A,
-            b=b,
-            x_0=x0.copy(),
-            sigma=0.1,
-            tol=10e-5,
-            verbose=False
+            G=G, c=c, A=A, b=b, x_0=x0.copy(), tol=10e-5, verbose=False
         )
 
         self.assertAlmostEqual(fun(x), -99.96, places=5)

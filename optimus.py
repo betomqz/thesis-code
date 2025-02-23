@@ -34,27 +34,66 @@ def int_point_qp(G: np.ndarray,
                  x_0: np.ndarray,
                  y_0: np.ndarray = None,
                  lam_0: np.ndarray = None,
-                 sigma: float = 0.5,
                  maxiters: int = 50,
                  tol: np.float64 = np.finfo(np.float64).eps,
                  verbose = True
                  ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     '''
-    Solve quadratic problem
-        $$ \\min  q(x) = \\frac{1}{2} x^T G x + x^T c $$
-        s.t. $$Ax \\geq b.$$
-    Using the interior point method described by Nocedal.
+    Solves a convex quadratic programming (QP) problem with inequality
+    constraints using the predictor-corrector interior-point method described by
+    Nocedal's book in algorithm 16.4 (p. 484).
+
+    The problem is formulated as:
+    ```
+    min q(x) = 1/2 x^T * G * x + x^T * c
+    ```
+    subject to
+    ```
+    A * x >= b
+    ```
 
     Parameters
-    - `G` (np.ndarray): symmetric and positive semidefinite nxn matrix
-    - `c` is a vector of size n
-    - `A` is an mxn matrix
-    - `b` is a vector of size m
+    ----------
+    G : ndarray
+        Symmetric and positive semidefinite `nxn` matrix.
+
+    c : ndarray
+        Coefficient vector of size `n`.
+
+    A : ndarray
+        Constraint matrix of size `mxn`.
+
+    b : ndarray
+        Constraint vector of size `m`.
+
+    x_0 : ndarray
+        Initial guess for `x`.
+
+    y_0 : ndarray, optional
+        Initial guess for the slack variable `y`. Default is None.
+
+    lam_0 : ndarray, optional
+        Initial guess for the Lagrange multipliers. Default is None.
+
+    maxiters : int, optional
+        Maximum number of iterations. Default is 50.
+
+    tol : float, optional
+        Tolerance for the convergence test. Default is machine epsilon for `np.float64`.
+
+    verbose : bool, optional
+        If True, prints iteration details. Default is True.
 
     Returns
-    - `x`: the solution
-    - `y`: slack variable
-    - `lam`: lagrange multiplier
+    -------
+    x : ndarray
+        The optimal solution.
+
+    y : ndarray
+        Slack variables at the optimal point.
+
+    lam : ndarray
+            Lagrange multipliers associated with the constraints.
     '''
     n = G.shape[0]
     m = A.shape[0]
@@ -176,12 +215,13 @@ def int_point_qp(G: np.ndarray,
 def _bfgs(s_k: np.ndarray, y_k: np.ndarray, B_k: np.ndarray) -> np.ndarray:
     '''
     Calculates an update to the Hessian using a damped BFGS approach described
-    by Nocedal in Procedure 18.2 to guarantee that the update is s.p.d.
+    by Nocedal in Procedure 18.2 (p. 537) to guarantee that the update is s.p.d.
 
     Parameters
     ----------
     s_k : ndarray
-        Vector representing the change for x in current iteration (alpha_k * p_k)
+        Vector representing the change for x in current iteration (alpha_k *
+        p_k)
 
     y_k : ndarray
         Vector representing the change for the lagrangian in current iteration
@@ -215,15 +255,15 @@ def _bfgs(s_k: np.ndarray, y_k: np.ndarray, B_k: np.ndarray) -> np.ndarray:
 def _l_bfgs(S_k: np.ndarray, Y_k: np.ndarray) -> np.ndarray:
     '''
     Calculates an approximation `B_k` to the Hessian using a limited-memory
-    updating approach described by Nocedal (eq. 7.29)
+    updating approach described by Nocedal (eq. 7.29, p. 182)
 
     Parameters
     ----------
     S_k : ndarray
-        n x m matrix with the m most recent s_i vectors
+        `n x m` matrix with the `m` most recent `s_i` vectors
 
     Y_k : ndarray
-        n x m matrix with the m most recent y_i vectors
+        `n x m` matrix with the `m` most recent `y_i` vectors
 
     Returns
     -------
@@ -270,7 +310,8 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
            ) -> tuple[np.ndarray, np.ndarray]:
     '''
     Solves a constrained optimization problem using Sequential Quadratic
-    Programming (SQP) with a line search approach.
+    Programming (SQP) with a line search approach. Based on Algorithm 18.3 (p.
+    545) from Nocedal's book.
 
     Parameters
     ----------
