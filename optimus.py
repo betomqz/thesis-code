@@ -71,17 +71,19 @@ def int_point_qp(G: np.ndarray,
     else:
         lam_k = lam_0
 
+    # Matrix M is the left side of (16.58)
+    M = np.zeros((n+2*m, n+2*m))
+    M[:n,:n] = G
+    M[:n,n+m:] = -A.T
+    M[n:n+m,:n] = A
+    M[n:n+m,n:n+m] = -np.eye(m)
+
     while k < maxiters:
-        # Matrix M is the left side of (16.58)
-        M = np.zeros((n+2*m, n+2*m))
+        # Update values for Y and Lam
         Y = np.diag(y_k)
         Lam = np.diag(lam_k)
-
-        M = np.block([
-            [G, np.zeros((n,m)), -A.T],
-            [A, -np.eye(m), np.zeros((m,m))],
-            [np.zeros((m,n)), Lam, Y]
-        ])
+        M[n+m:,n:n+m] = Lam
+        M[n+m:,n+m:] = Y
 
         # Right side of (16.58) with sigma = 0
         r_d = np.dot(G,x_k) - np.dot(A.T,lam_k) + c
@@ -104,8 +106,8 @@ def int_point_qp(G: np.ndarray,
 
         # Calculate alpha_aff
         alpha_aff = _find_alpha(
-            np.concatenate((y_k, lam_k)),
-            np.concatenate((d_y_aff, d_lam_aff)),
+            np.concatenate([y_k, lam_k]),
+            np.concatenate([d_y_aff, d_lam_aff]),
             1
         )
 
