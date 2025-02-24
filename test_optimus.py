@@ -1,13 +1,34 @@
 import unittest
 import numpy as np
 import numpy.testing as npt
+import logging
 from optimus import int_point_qp, ls_sqp, _find_alpha
 from scipy.optimize import rosen, rosen_der, rosen_hess, minimize, LinearConstraint
+
+
+# Log to the console as well
+SHOW_CONSOLE = False
 
 class TestOptimus(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # Logger setup. Write everything to a file (clear on each run) and only
+        # show warnings in console if SHOW_CONSOLE is True
+        logger_format = '%(asctime)s %(funcName)s %(levelname)s: %(message)s'
+        logging.basicConfig(
+            filename='tmp/unittests.log',
+            filemode='w',
+            level=logging.DEBUG,
+            format=logger_format
+        )
+
+        if SHOW_CONSOLE:
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.WARNING)
+            console_handler.setFormatter(logging.Formatter(logger_format))
+            logging.getLogger().addHandler(console_handler)
+
         np.random.seed(7679448)
 
     def perform_int_point_random(self, n, tol=0.01, verbose=False):
