@@ -1,7 +1,15 @@
 import numpy as np
+import logging
 from collections import deque
 from scipy import linalg as la
 from typing import Callable
+
+
+# Logger
+logger = logging.getLogger(__name__)
+
+# Capture warnings (for LinAlgWarning)
+logging.captureWarnings(True)
 
 
 def _find_alpha(y: np.ndarray,
@@ -95,6 +103,7 @@ def int_point_qp(G: np.ndarray,
     lam : ndarray
             Lagrange multipliers associated with the constraints.
     '''
+    logger.info("START")
     n = G.shape[0]
     m = A.shape[0]
 
@@ -170,9 +179,9 @@ def int_point_qp(G: np.ndarray,
 
         # If stopping criteria is met, return.
         if la.norm(d_x, np.infty) <= tol:
-            if verbose:
-                print("Solution found")
-                print(f"iter {k}:\n - x: {x_k}\n - y: {y_k}\n - l: {lam_k}")
+            logger.info("Solution found!")
+            logger.info(f"iter {k}:\n - x: {x_k}\n - y: {y_k}\n - l: {lam_k}")
+            logger.info("END")
             return x_k, y_k, lam_k
 
         # Step length selection from (16.66)
@@ -186,8 +195,7 @@ def int_point_qp(G: np.ndarray,
         alpha = np.min([alpha_pri, alpha_dual])
 
         if alpha == 0:
-            if verbose:
-                print(f"INT POINT WARNING: alpha is 0 for iter {k}")
+            logger.warning(f"alpha is 0 for iter {k}")
             alpha = 0.1
 
         # Update x_k, y_k, and lam_k
@@ -196,19 +204,14 @@ def int_point_qp(G: np.ndarray,
         lam_k += alpha * d_lam
 
         k += 1
-        # TODO: better use a logger.
-        if verbose:
-            print(f"iter {k}:\n" +
-                # f" - x: {x_k}\n" +
-                # f" - y: {y_k}\n" +
-                # f" - l: {lam_k}\n" +
-                f" - ||d_x||_infty: {la.norm(d_x, np.infty)}\n" +
-                f" - ||d_y||_infty: {la.norm(d_y, np.infty)}\n" +
-                f" - ||d_lam||_infty: {la.norm(d_lam, np.infty)}\n" +
-                f" - alpha: {alpha}\n")
+        logger.info(f"iter {k}:\n" +
+            f" - ||d_x||_infty: {la.norm(d_x, np.infty)}\n" +
+            f" - ||d_y||_infty: {la.norm(d_y, np.infty)}\n" +
+            f" - ||d_lam||_infty: {la.norm(d_lam, np.infty)}\n" +
+            f" - alpha: {alpha}")
 
-    if verbose:
-        print(f"INT POINT WARNING: Maximum number of iterations achieved: {maxiters}")
+    logger.warning(f"Maximum number of iterations achieved: {maxiters}")
+    logger.info("END")
     return x_k, y_k, lam_k
 
 
@@ -360,6 +363,7 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
     lam_opt : ndarray
         The corresponding Lagrange multipliers at the optimal point.
     '''
+    logger.info("START")
 
     # Verify valid method for quasi-Newton approx
     if (not callable(hessian)) and hessian != 'BFGS' and hessian != 'L-BFGS':
@@ -472,28 +476,28 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
 
         # If something went wrong with finding mu_k, reset it to 1
         if count_mu == 15:
-            print("WARNING: maximum value for mu reached.")
+            logger.warning("Maximum value for mu reached")
             mu_k = 1
 
         # If something went wrong with line search, warn
         if count_ls == 30:
-            print("WARNING: maximum number of iterations achieved for line "
-                  "search")
+            logger.warning("Maximum number of iterations achieved for line \
+                           search")
 
         k += 1
         # If stopping criteria is met, return.
         kkt_norm = la.norm(kkt, np.infty)
         if kkt_norm <= tol:
-            print("Solution found")
-            print(f"iter {k}:\n - x: {x_k}\n - l: {lam_k}")
+            logger.info("Solution found!")
+            logger.info(f"iter {k}:\n - x: {x_k}\n - l: {lam_k}")
+            logger.info("END")
             return x_k, lam_k
 
         # TODO: better use a logger.
-        print(f"iter {k}:\n" +
-              f" - x: {x_k}\n" +
-              f" - l: {lam_k}\n" +
+        logger.info(f"iter {k}:\n" +
               f" - ||kkt||: {kkt_norm}\n" +
-              f" - alpha_k: {alpha_k}\n")
+              f" - alpha_k: {alpha_k}")
 
-    print(f"WARNING: maximum number of iterations achieved: {maxiters}")
+    logger.warning(f"Maximum number of iterations achieved: {maxiters}")
+    logger.info("END")
     return x_k, lam_k
