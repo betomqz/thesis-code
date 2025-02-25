@@ -1,17 +1,19 @@
 import enum
 import numpy as np
-import sys
+import logging
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 import tensorflow as tf
 from utils import eval_flat_pred
-from utils import TextColors as tc
 from optimus import ls_sqp
 from pathlib import Path
 
 
 SUCCESS = 0
 FAILURE = 1
+
+
+logger = logging.getLogger(__name__)
 
 
 class Dist(enum.Enum):
@@ -54,9 +56,9 @@ class Attack:
 
         Returns (x, fun(x), nit)
         '''
-        raise NotImplementedError(
-            f"{tc.FAIL}ERROR{tc.ENDC}: _minimize() method not implemented."
-        )
+        msg = "`_minimize()` method not implemented."
+        logger.error(msg)
+        raise NotImplementedError(msg)
 
     def attack(
             self,
@@ -66,6 +68,7 @@ class Attack:
             initial_guess
         ) -> int:
         '''Executes the binary search for the attack and stores the result.'''
+        logger.info("START")
         self.original_input = original_input
         self.original_class = original_class
         self.target_class = target_class
@@ -90,11 +93,12 @@ class Attack:
 
         # Evaluate on the right
         self.c = right
+        logger.info(f"Performing binary search. c:{self.c}")
         res_x, res_fun, res_nit = self._minimize()
 
         # If res.x on the right isn't classified as the target, return FAILURE.
         if eval_flat_pred(res_x, self.model) != self.target_class:
-            print(f"{tc.FAIL}ERROR{tc.ENDC}: c={self.c} didn't work.")
+            logger.error(f"c={self.c} didn't work.")
             return FAILURE
         # Else store successful result and continue
         self.res['x'] = res_x
@@ -103,6 +107,7 @@ class Attack:
 
         # Evaluate on the left
         self.c = left 
+        logger.info(f"Performing binary search. c:{self.c}")
         res_x, res_fun, res_nit = self._minimize()
 
         # If res.x on the left is classified as the target, return
@@ -110,6 +115,7 @@ class Attack:
             self.res['x'] = res_x
             self.res['fun'] = res_fun
             self.res['nit'] = res_nit
+            logger.info("END")
             return SUCCESS
 
         count = 0
@@ -118,9 +124,7 @@ class Attack:
             self.c = (left + right) / 2
 
             aux_c = ("{0:.2f}").format(self.c)
-            print(f"\rPerforming binary search. c:{aux_c}, iter: {count}",
-                  end="\r")
-            sys.stdout.flush()
+            logger.info(f"Performing binary search. c:{aux_c}, iter: {count}")
             
             res_x, res_fun, res_nit = self._minimize()
 
@@ -136,6 +140,7 @@ class Attack:
             count += 1
 
         # We can guarantee that we succeeded for at least one c
+        logger.info("END")
         return SUCCESS
 
     def _fun(
@@ -184,7 +189,7 @@ class Attack:
         TODO: refactor this. I don't like it. But it works, I think.
         '''
         if self.res['x'] is None:
-            print(f"{tc.FAIL}ERROR{tc.ENDC}: cannot save empty result.")
+            logger.error("Cannot save empty result.")
             return
         
         # Create the path and its parent directories if it doesn't exist
