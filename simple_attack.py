@@ -80,7 +80,7 @@ def simple_attack(attacker: Attack,
         initial_guess=initial_guess
     )
     attacker.save(path=save_path)
-    
+
     # See if test passed and log
     result = utils.eval_flat_pred(attacker.res['x'], model=model)
     if result == target_class:
@@ -117,5 +117,4 @@ if __name__ == "__main__":
         original_class=og_class,
         target_class=1,
         close_to_target=True
-    ) 
-    
+    )
