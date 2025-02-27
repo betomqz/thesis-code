@@ -73,6 +73,8 @@ class Attack:
         self.original_class = original_class
         self.target_class = target_class
         self.initial_guess = initial_guess
+        # TODO: again this 10 maybe shouldn't be hardcoded
+        self.target_one_hot = tf.one_hot([self.target_class], 10)
 
         # Clear previous result
         self.res = {
@@ -80,14 +82,14 @@ class Attack:
             'fun': None,
             'nit': None
         }
-        
+
         # Set upper and lower bound for c
         right = self.c_right
         left = self.c_left
 
         # Convert original input to tensor
         self.original_input_tensor = tf.convert_to_tensor(
-            self.original_input.reshape(-1,28,28,1), 
+            self.original_input.reshape(-1,28,28,1),
             dtype=tf.float32
         )
 
@@ -106,12 +108,12 @@ class Attack:
         self.res['nit'] = res_nit
 
         # Evaluate on the left
-        self.c = left 
+        self.c = left
         logger.info(f"Performing binary search. c:{self.c}")
         res_x, res_fun, res_nit = self._minimize()
 
         # If res.x on the left is classified as the target, return
-        if eval_flat_pred(res_x, self.model) == self.target_class:        
+        if eval_flat_pred(res_x, self.model) == self.target_class:
             self.res['x'] = res_x
             self.res['fun'] = res_fun
             self.res['nit'] = res_nit
@@ -125,12 +127,12 @@ class Attack:
 
             aux_c = ("{0:.2f}").format(self.c)
             logger.info(f"Performing binary search. c:{aux_c}, iter: {count}")
-            
+
             res_x, res_fun, res_nit = self._minimize()
 
             # If attack succeeds, move right to the middle. If it doesn't, move
             # the left to the middle
-            if eval_flat_pred(res_x, self.model) == self.target_class: 
+            if eval_flat_pred(res_x, self.model) == self.target_class:
                 right = self.c
                 self.res['x'] = res_x
                 self.res['fun'] = res_fun
@@ -150,23 +152,23 @@ class Attack:
         '''Objective function to be minimized by _minimize.'''
         # Convert the starting point from ndarray to tensor
         x_tensor = tf.convert_to_tensor(x.reshape(-1,28,28,1), dtype=tf.float32)
-        x_tensor = tf.Variable(x_tensor, trainable=True)                
+        x_tensor = tf.Variable(x_tensor, trainable=True)
 
         # Calculate loss and gradients
         with tf.GradientTape() as tape:
             tape.watch(x_tensor)
             pred = self.model(x_tensor)[0]
             mask = tf.ones_like(pred, dtype=tf.bool)
-        
+
             # Set the t-th entry of the mask to False
             mask = tf.tensor_scatter_nd_update(mask, indices=[[self.target_class]], updates=[False])
-            
+
             # Apply the mask to the tensor pred
             masked_pred = tf.boolean_mask(pred, mask)
-            
+
             # Find the maximum value of the masked tensor
             max_z = tf.reduce_max(masked_pred)
-            
+
             # Get distance from x0_t to x_t
             if self.distance == Dist.L2:
                 d = tf.sqrt(tf.reduce_sum(tf.square(x_tensor - self.original_input_tensor))) # L2 norm
@@ -174,7 +176,7 @@ class Attack:
                 d = tf.reduce_sum(tf.abs(x_tensor - self.original_input_tensor)) # L1 norm
             else:
                 d = tf.reduce_max(tf.abs(x_tensor - self.original_input_tensor)) #L_infty norm
-            val = d + self.c * tf.nn.relu(max_z - pred[self.target_class])        
+            val = d + self.c * tf.nn.relu(max_z - pred[self.target_class])
 
         gradients = tape.gradient(val, x_tensor).numpy().flatten()
         val = val.numpy()
@@ -191,7 +193,7 @@ class Attack:
         if self.res['x'] is None:
             logger.error("Cannot save empty result.")
             return
-        
+
         # Create the path and its parent directories if it doesn't exist
         Path(path).mkdir(parents=True, exist_ok=True)
 
@@ -204,13 +206,13 @@ class Attack:
         temp = self.res['x'].reshape(28,28,1)
         fig, ax = plt.subplots()
         ax.set_axis_off()
-        
+
         plt.imshow(temp, cmap='gray_r')
-        plt.savefig(fname=f'{path}/{self.original_class}-to-{self.target_class}.png', 
-                    format='png', 
-                    pad_inches=0, 
+        plt.savefig(fname=f'{path}/{self.original_class}-to-{self.target_class}.png',
+                    format='png',
+                    pad_inches=0,
                     bbox_inches='tight')
-        
+
         if visualize:
             plt.show()
         plt.close()
@@ -295,3 +297,37 @@ class OptimusAttack(Attack):
         )
         res_fun, _ = self._fun(res_x)
         return res_x, res_fun, -1 #TODO: return iteration count
+
+
+class SzegedyAttack(OptimusAttack):
+
+    def _fun(
+            self,
+            x: np.ndarray
+        ) -> tuple[float, np.ndarray]:
+        '''Objective function to be minimized by _minimize.'''
+        # Convert the starting point from ndarray to tensor
+        x_tensor = tf.convert_to_tensor(x.reshape(-1,28,28,1), dtype=tf.float32)
+        x_tensor = tf.Variable(x_tensor, trainable=True)
+
+        # Calculate loss and gradients
+        with tf.GradientTape() as tape:
+            tape.watch(x_tensor)
+            pred = self.model(x_tensor)
+            ce = tf.reduce_mean(
+                tf.keras.losses.categorical_crossentropy(self.target_one_hot, pred)
+            )
+
+            # Get distance from x0_t to x_t
+            if self.distance == Dist.L2:
+                d = tf.sqrt(tf.reduce_sum(tf.square(x_tensor - self.original_input_tensor))) # L2 norm
+            elif self.distance == Dist.L1:
+                d = tf.reduce_sum(tf.abs(x_tensor - self.original_input_tensor)) # L1 norm
+            else:
+                d = tf.reduce_max(tf.abs(x_tensor - self.original_input_tensor)) #L_infty norm
+            val = self.c * d + ce
+
+        gradients = tape.gradient(val, x_tensor).numpy().flatten()
+        val = val.numpy()
+
+        return val, gradients
