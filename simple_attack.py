@@ -1,7 +1,7 @@
 import utils
 import logging
 from datetime import datetime
-from attack import Attack, OptimusAttack, SciPyAttack, SzegedyAttack, Dist
+from attack import Attack, OptimusAttack, SciPyAttack, Dist
 from keras import models
 import numpy as np
 from pathlib import Path
@@ -76,11 +76,16 @@ def simple_attack(attacker: Attack,
             0., 1.
         )
 
-    attacker.attack(
+    obj_fun = 'szegedy' if use_softmax else 'carlini'
+
+    attacker.binary_search_attack(
         original_input=original_input,
         original_class=original_class,
         target_class=target_class,
-        initial_guess=initial_guess
+        initial_guess=initial_guess,
+        obj_fun=obj_fun,
+        maxiters_bs=5,
+        c_right=2.0
     )
     attacker.save(path=save_path)
 
@@ -107,29 +112,9 @@ if __name__ == "__main__":
     #     options={'maxiter':2000, 'disp':0}
     # )
 
-    # attacker = OptimusAttack(
-    #     model,
-    #     distance=Dist.LINF,
-    #     maxiters_bs=5,
-    #     c_right=2.0,
-    #     maxiters_method=500
-    # )
-
-
-    # SzegedyAttack(SciPyAttack)
-    # attacker = SzegedyAttack(
-    #     softmaxmodel,
-    #     distance=Dist.L2,
-    #     method='L-BFGS-B',
-    #     options={'maxiter':2000, 'disp':0}
-    # )
-
-    # SzegedyAttack(OptimusAttack)
-    attacker = SzegedyAttack(
+    attacker = OptimusAttack(
         softmaxmodel,
         distance=Dist.L2,
-        maxiters_bs=5,
-        c_right=2.0,
         maxiters_method=100,
         tol=0.1
     )
