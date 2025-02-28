@@ -2,6 +2,7 @@ import utils
 import logging
 from datetime import datetime
 from attack import Attack, OptimusAttack, SciPyAttack, Dist
+from keras import models
 import numpy as np
 from pathlib import Path
 
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 # Load model and data
 logger.info('Loading model and data')
 model = utils.load_mnist_model()
+softmaxmodel = models.load_model('models/macos/softmaxmnist.keras')
 x_train, x_test, y_train, y_test = utils.load_mnist_data()
 
 # Choose inputs
@@ -59,7 +61,8 @@ def simple_attack(attacker: Attack,
                   original_input,
                   original_class,
                   target_class,
-                  close_to_target=False):
+                  close_to_target=False,
+                  use_softmax=False):
     '''
     Perform an attack with a customizable initial guess strategy.
     '''
@@ -73,16 +76,24 @@ def simple_attack(attacker: Attack,
             0., 1.
         )
 
-    attacker.attack(
+    obj_fun = 'szegedy' if use_softmax else 'carlini'
+
+    attacker.binary_search_attack(
         original_input=original_input,
         original_class=original_class,
         target_class=target_class,
-        initial_guess=initial_guess
+        initial_guess=initial_guess,
+        obj_fun=obj_fun,
+        maxiters_bs=5,
+        c_right=2.0
     )
     attacker.save(path=save_path)
 
     # See if test passed and log
-    result = utils.eval_flat_pred(attacker.res['x'], model=model)
+    result = utils.eval_flat_pred(
+        attacker.res['x'],
+        model=softmaxmodel if use_softmax else model
+    )
     if result == target_class:
         logger.info("The attack was successful")
     else:
@@ -93,21 +104,19 @@ def simple_attack(attacker: Attack,
 
 if __name__ == "__main__":
 
+    logger.info("START")
     # attacker = SciPyAttack(
     #     model,
     #     distance=Dist.L2,
     #     method='L-BFGS-B',
     #     options={'maxiter':2000, 'disp':0}
     # )
-    # path = 'results/tests/attack/scipy/close/L2'
 
-    logger.info("START")
     attacker = OptimusAttack(
-        model,
-        distance=Dist.LINF,
-        maxiters_bs=5,
-        c_right=2.0,
-        maxiters_method=500
+        softmaxmodel,
+        distance=Dist.L2,
+        maxiters_method=100,
+        tol=0.1
     )
 
     og_class, og_input = inputs[0]
@@ -116,5 +125,6 @@ if __name__ == "__main__":
         original_input=og_input,
         original_class=og_class,
         target_class=1,
-        close_to_target=True
+        close_to_target=True,
+        use_softmax=True
     )

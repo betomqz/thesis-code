@@ -300,7 +300,7 @@ def _l_bfgs(S_k: np.ndarray, Y_k: np.ndarray) -> np.ndarray:
     return delta_k * np.eye(n) - np.dot(dSY, X)
 
 
-def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
+def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
            restr: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]],
            x_0: np.ndarray,
            lam_0: np.ndarray,
@@ -309,6 +309,7 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
            eta: float,
            tau: float,
            maxiters: int,
+           args: tuple = (),
            tol: np.float64 = np.finfo(np.float64).eps
            ) -> tuple[np.ndarray, np.ndarray]:
     '''
@@ -350,9 +351,12 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
     maxiters : int
         Maximum number of iterations allowed.
 
+    args : tuple, optional
+        Arguments passed to ``fun``.
+
     tol : float, optional
         Tolerance for the convergence test. Default is machine epsilon for
-        `np.float64`.
+        ``np.float64``.
 
     Returns
     -------
@@ -372,7 +376,7 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
     # Evaluate f_0, ∇f_0, c_0, A_0;
     x_k = x_0
     lam_k = lam_0
-    f_k, grad_k = fun(x_k) # fun must return both f and its gradient
+    f_k, grad_k = fun(x_k, *args) # fun must return both f and its gradient
     c_k, A_k = restr(x_k) # restr must return both c(x) and A(x)
 
     # || [c_k]^- ||_1: see (15.24)
@@ -431,7 +435,7 @@ def ls_sqp(fun: Callable[[np.ndarray], tuple[float, np.ndarray]],
         while count_ls < 50:
             # Evaluate possible f_k+1, ∇f_k+1, c_k+1, A_k+1
             s_k = alpha_k * p_k
-            f_k, grad_k = fun(x_k + s_k)
+            f_k, grad_k = fun(x_k + s_k, *args)
             c_k, A_k = restr(x_k + s_k)
             c_k_norm = la.norm(np.maximum(0, -c_k), ord=1)
 

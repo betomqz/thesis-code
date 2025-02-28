@@ -45,7 +45,7 @@ def load_mnist_data():
     return x_train, x_test, y_train, y_test
 
 
-def train_nn_mnist(save_path='models/macos/'):
+def train_nn_mnist(save_path='models/macos/', with_softmax=False):
     
     batch_size = 128
     epochs = 3
@@ -66,14 +66,18 @@ def train_nn_mnist(save_path='models/macos/'):
             keras.layers.Dense(num_classes)
         ]
     )
+    if with_softmax:
+        model.add(keras.layers.Activation("softmax"))
 
     # Idea from https://github.com/carlini/nn_robust_attacks/blob/master/train_models.py
     def fn(correct, predicted):
         return tf.nn.softmax_cross_entropy_with_logits(labels=correct,
                                                        logits=predicted)
 
+    loss_fn = "categorical_crossentropy" if with_softmax else fn
+
     model.compile(
-        loss=fn, optimizer="adam", metrics=["accuracy"]
+        loss=loss_fn, optimizer="adam", metrics=["accuracy"]
     )
 
     model.fit(
@@ -81,7 +85,8 @@ def train_nn_mnist(save_path='models/macos/'):
     )
 
     # Export and save model
-    model.save(save_path + "mnist.keras")
+    name = "softmaxmnist.keras" if with_softmax else "mnist.keras"
+    model.save(save_path + name)
     return model
 
 
