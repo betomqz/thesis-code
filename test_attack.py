@@ -1,122 +1,201 @@
-import utils
-from attack import OptimusAttack, SciPyAttack, Dist
+import unittest
 import numpy as np
-import os
+import logging
+from attack import Attack, OptimusAttack, SciPyAttack, Dist
+from keras import models
+import utils
 from pathlib import Path
 
-# Load model and data
-model = utils.load_mnist_model()
-x_train, x_test, y_train, y_test = utils.load_mnist_data()
 
-# Choose inputs
-inputs = [
-    (0, x_test[3]),
-    (1, x_test[2]),
-    (2, x_test[1]),
-    (3, x_test[18]),
-    (4, x_test[4]),
-    (5, x_test[8]),
-    (6, x_test[11]),
-    (7, x_test[0]),
-    (8, x_test[61]),
-    (9, x_test[7])
-]
+SHOW_CONSOLE = True
+LOGGER_FORMAT = '%(asctime)s %(name)s %(funcName)s %(levelname)s: %(message)s'
 
-# Initial guess for the method. Fixed here so that results are reproducible.
-np.random.seed(7679448)
-random_guess = np.random.rand(784)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
-def perform_attack(attacker, save_path, close_to_target=False):
-    '''
-    Perform an attack with a customizable initial guess strategy.
+if SHOW_CONSOLE:
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    console_handler.setFormatter(logging.Formatter(LOGGER_FORMAT))
 
-    Parameters:
-    - attacker: The attacker instance.
-    - save_path: Path to save the results.
-    - close_to_target: If True, initial guess will be close to the target; 
-                       if False, it will use a fixed random guess.
-    '''
-    # Create the path and its parent directories if it doesn't exist
-    Path(save_path).mkdir(parents=True, exist_ok=True)
-
-    if not close_to_target:
-        initial_guess = random_guess
-
-    total_tests = 9 * len(inputs)
-    tests_ran = 0
-    tests_failed = 0
-    print(f"Running {total_tests} tests.")
-
-    # For each input
-    for original_class, original_input in inputs:
-        # For each target
-        for target_class in range(10):
-            # If the file already exists, don't run this test
-            test_name = f'{original_class}-to-{target_class}'
-            file_path = f'{save_path}/{test_name}.png'
-            if os.path.exists(file_path):
-                print(f'{test_name} already exists. Skipping test')
-                tests_ran += 1
-                continue
-
-            # Only attack if original class is different than target
-            if original_class != target_class:
-
-                # Start close to the target
-                if close_to_target:
-                    initial_guess = np.clip(
-                        inputs[original_class][1].flatten() + 0.1 * random_guess,
-                        0., 1.
-                    )
-
-                print(f"Performing test {test_name}.")
-                attacker.attack(
-                    original_input=original_input,
-                    original_class=original_class,
-                    target_class=target_class,
-                    initial_guess=initial_guess
-                )
-                attacker.save(path=save_path)
-                
-                # See if test passed and log progress
-                result = utils.eval_flat_pred(attacker.res['x'], model=model)
-                passed = result == target_class
-                print(f"{test_name}: {'Passed' if passed else 'Failed'}")
-                tests_ran += 1
-                if not passed:
-                    tests_failed += 1
-                print(f"Progress: {tests_ran}/{total_tests} " +
-                      f"({(tests_ran/total_tests)*100:.2f}%). " + 
-                      f"{tests_failed} test(s) have failed.")
-        print("")
+    # Add console handler to root logger
+    logger.addHandler(console_handler)
 
 
-if __name__ == "__main__":
+class TestAttack(unittest.TestCase):
 
-    # attacker = SciPyAttack(
-    #     model,
-    #     distance=Dist.L2,
-    #     method='L-BFGS-B',
-    #     options={'maxiter':2000, 'disp':0}
-    # )
-    # path = 'results/tests/attack/scipy/close/L2'
+    @classmethod
+    def setUpClass(cls):
+        np.random.seed(7679448)
+        cls.random_guess = np.random.rand(784)
 
-    attacker = OptimusAttack(
-        model,
-        distance=Dist.L2,
-        maxiters_method=500
-    )
-    path = 'results/tests/attack/optimus/close/L2'
+        cls.model = utils.load_mnist_model()
+        cls.softmaxmodel = models.load_model('models/macos/softmaxmnist.keras')
+        x_train, x_test, y_train, y_test = utils.load_mnist_data()
+        # Choose inputs
+        cls.inputs = [
+            (0, x_test[3]),
+            (1, x_test[2]),
+            (2, x_test[1]),
+            (3, x_test[18]),
+            (4, x_test[4]),
+            (5, x_test[8]),
+            (6, x_test[11]),
+            (7, x_test[0]),
+            (8, x_test[61]),
+            (9, x_test[7])
+        ]
 
-    perform_attack(attacker, path, True)
+        # Directory to save the logs of each test
+        cls.parent_path = Path('logs/test_attack/')
+        cls.parent_path.mkdir(parents=True, exist_ok=True)
 
-    ## TODO fix this
-    # Save each original image used
-    for input_class, input in inputs:    
-        utils.vis_flat_mnist(input.flatten(), 
-                            save=True, 
-                            filename=f'{path}/{input_class}-to-{input_class}.png', 
-                            format='png')
-    
-    # Build big graph
-    utils.big_graph(path)
+    def setUp(self):
+        '''Set up a log file for each test case'''
+        # Get the name and remove the 'test_' part
+        self.test_name = self.id().split('.')[-1][5:]
+        self.log_path = self.parent_path.joinpath(self.test_name)
+        self.log_path.mkdir(exist_ok=True) # Parent dir should be created by now
+
+        # File handler & format
+        self.file_handler = logging.FileHandler(
+            filename=self.log_path.joinpath('attack.log'),
+            mode='w'
+        )
+        self.file_handler.setLevel(logging.DEBUG)
+        self.file_handler.setFormatter(logging.Formatter(LOGGER_FORMAT))
+
+        # Add file handler to root logger
+        logger.addHandler(self.file_handler)
+
+    def tearDown(self):
+        '''Remove file handler from root logger after test'''
+        logger.removeHandler(self.file_handler)
+        self.file_handler.close()
+
+    def _perform_bin_search(self, attacker: Attack, obj_fun, c_left=0.01, c_right=2.0):
+        '''Helper function to run binary search attacks'''
+        # Original class will be 0
+
+        og_class, og_input = self.inputs[0]
+
+        # Start close to the target
+        initial_guess = np.clip(
+            self.inputs[og_class][1].flatten() + 0.1 * self.random_guess,
+            0., 1.
+        )
+
+        attacker.binary_search_attack(
+            original_input=og_input,
+            original_class=og_class,
+            target_class=1,
+            initial_guess=initial_guess,
+            obj_fun=obj_fun,
+            maxiters_bs=5,
+            c_left=c_left,
+            c_right=c_right
+        )
+        attacker.save(path=self.log_path)
+
+        # See if test passed and log
+        result = utils.eval_flat_pred(
+            attacker.res['x'],
+            model=self.softmaxmodel if obj_fun == 'szegedy' else self.model
+        )
+        return result == 1
+
+    # Tests using Optimus ------------------------------------------------------
+    def test_optimus_szegedy_bin_search_L2(self):
+        logger.info('START')
+
+    def test_optimus_szegedy_bin_search_L1(self):
+        logger.info('START')
+
+    def test_optimus_carlini_bin_search_L2(self):
+        logger.info('START')
+
+    def test_optimus_carlini_bin_search_L1(self):
+        logger.info('START')
+
+    # Tests using SciPy --------------------------------------------------------
+    def test_scipy_szegedy_bin_search_L2(self):
+        '''
+        Test attack using SciPy's L-BFGS-B method, Szegedy's objective function,
+        binary search, and L2 distance.
+        '''
+        logger.info('START')
+        attacker = SciPyAttack(
+            self.softmaxmodel,
+            distance=Dist.L2,
+            method='L-BFGS-B',
+            options={'maxiter':2000, 'disp':0}
+        )
+        passed = self._perform_bin_search(attacker=attacker, obj_fun='szegedy')
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
+    def test_scipy_szegedy_bin_search_L1(self):
+        '''
+        Test attack using SciPy's L-BFGS-B method, Szegedy's objective function,
+        binary search, and L1 distance.
+        '''
+        logger.info('START')
+        attacker = SciPyAttack(
+            self.softmaxmodel,
+            distance=Dist.L1,
+            method='L-BFGS-B',
+            options={'maxiter':2000, 'disp':0}
+        )
+        passed = self._perform_bin_search(attacker=attacker, obj_fun='szegedy')
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
+    def test_scipy_carlini_bin_search_L2(self):
+        '''
+        Test attack using SciPy's L-BFGS-B method, Carlini's objective function,
+        binary search, and L2 distance.
+        '''
+        logger.info('START')
+        attacker = SciPyAttack(
+            self.model,
+            distance=Dist.L2,
+            method='L-BFGS-B',
+            options={'maxiter':2000, 'disp':0}
+        )
+        passed = self._perform_bin_search(
+            attacker=attacker, obj_fun='carlini', c_left=0.2, c_right=1.0
+        )
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
+    def test_scipy_carlini_bin_search_L1(self):
+        '''
+        Test attack using SciPy's L-BFGS-B method, Carlini's objective function,
+        binary search, and L1 distance.
+        '''
+        logger.info('START')
+        attacker = SciPyAttack(
+            self.model,
+            distance=Dist.L1,
+            method='L-BFGS-B',
+            options={'maxiter':2000, 'disp':0}
+        )
+        passed = self._perform_bin_search(attacker=attacker, obj_fun='carlini')
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
