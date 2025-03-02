@@ -106,16 +106,84 @@ class TestAttack(unittest.TestCase):
 
     # Tests using Optimus ------------------------------------------------------
     def test_optimus_szegedy_bin_search_L2(self):
+        '''
+        Test attack using SQP, Szegedy's objective function, binary search, and
+        L2 distance.
+        '''
         logger.info('START')
+        attacker = OptimusAttack(
+            self.softmaxmodel,
+            distance=Dist.L2,
+            maxiters_method=50,
+            tol=0.1
+        )
+        passed = self._perform_bin_search(attacker=attacker, obj_fun='szegedy')
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
 
     def test_optimus_szegedy_bin_search_L1(self):
+        '''
+        Test attack using SQP, Szegedy's objective function, binary search, and
+        L1 distance.
+        '''
         logger.info('START')
+        attacker = OptimusAttack(
+            self.softmaxmodel,
+            distance=Dist.L1,
+            maxiters_method=20,
+            tol=0.1
+        )
+        passed = self._perform_bin_search(attacker=attacker, obj_fun='szegedy')
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
 
     def test_optimus_carlini_bin_search_L2(self):
+        '''
+        Test attack using SQP, Carlini's objective function, binary search, and
+        L2 distance.
+        '''
         logger.info('START')
+        attacker = OptimusAttack(
+            self.model,
+            distance=Dist.L2,
+            maxiters_method=20,
+            tol=0.2
+        )
+        passed = self._perform_bin_search(attacker=attacker, obj_fun='carlini')
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
 
     def test_optimus_carlini_bin_search_L1(self):
+        '''
+        Test attack using SQP, Carlini's objective function, binary search, and
+        L1 distance.
+        '''
         logger.info('START')
+        attacker = OptimusAttack(
+            self.model,
+            distance=Dist.L1,
+            maxiters_method=20,
+            tol=0.2
+        )
+        passed = self._perform_bin_search(attacker=attacker, obj_fun='carlini')
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
 
     # Tests using SciPy --------------------------------------------------------
     def test_scipy_szegedy_bin_search_L2(self):
