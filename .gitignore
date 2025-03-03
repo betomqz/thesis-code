@@ -22,3 +22,5 @@ models/
 notes.md
 # I'll store the results of my tests here
 logs/
+
+*.egg-info/

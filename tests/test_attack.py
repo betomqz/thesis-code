@@ -1,9 +1,9 @@
 import unittest
 import numpy as np
 import logging
-from attack import Attack, OptimusAttack, SciPyAttack, Dist
+from opt_attack.attack import Attack, OptimusAttack, SciPyAttack, Dist
 from keras import models
-import utils
+from opt_attack import utils
 from pathlib import Path
 
 
