@@ -1,9 +1,9 @@
 import unittest
 import numpy as np
 import logging
-from attack import Attack, OptimusAttack, SciPyAttack, Dist
+from opt_attack.attack import Attack, OptimusAttack, SciPyAttack, Dist
 from keras import models
-import utils
+from opt_attack import utils
 from pathlib import Path
 
 
@@ -30,7 +30,7 @@ class TestAttack(unittest.TestCase):
         cls.random_guess = np.random.rand(784)
 
         cls.model = utils.load_mnist_model()
-        cls.softmaxmodel = models.load_model('models/macos/softmaxmnist.keras')
+        cls.softmaxmodel = models.load_model('models/softmaxmnist.keras')
         x_train, x_test, y_train, y_test = utils.load_mnist_data()
         # Choose inputs
         cls.inputs = [

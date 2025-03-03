@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import numpy.testing as npt
 import logging
-from optimus import int_point_qp, ls_sqp, _find_alpha
+from opt_attack.optimus import int_point_qp, ls_sqp, _find_alpha
 from scipy.optimize import rosen, rosen_der, rosen_hess, minimize, LinearConstraint
 
 
