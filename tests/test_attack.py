@@ -30,7 +30,7 @@ class TestAttack(unittest.TestCase):
         cls.random_guess = np.random.rand(784)
 
         cls.model = utils.load_mnist_model()
-        cls.softmaxmodel = models.load_model('models/macos/softmaxmnist.keras')
+        cls.softmaxmodel = models.load_model('models/softmaxmnist.keras')
         x_train, x_test, y_train, y_test = utils.load_mnist_data()
         # Choose inputs
         cls.inputs = [

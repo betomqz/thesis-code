@@ -45,7 +45,7 @@ def load_mnist_data():
     return x_train, x_test, y_train, y_test
 
 
-def train_nn_mnist(save_path='models/macos/', with_softmax=False):
+def train_nn_mnist(save_path='models/', with_softmax=False):
     
     batch_size = 128
     epochs = 3
@@ -90,7 +90,7 @@ def train_nn_mnist(save_path='models/macos/', with_softmax=False):
     return model
 
 
-def load_mnist_model(path='models/macos/mnist.keras'):
+def load_mnist_model(path='models/mnist.keras'):
     '''
     Function to load pre-trained MNIST model.
 
