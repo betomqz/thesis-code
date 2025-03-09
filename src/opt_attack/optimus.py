@@ -25,7 +25,7 @@ def _find_alpha(y: np.ndarray,
 
     # If d_y > 0, we need alpha >= - tau * y / d_y, so there's an error if
     # - tau * y / d_y is greater than 1.
-    # TODO: I think this cases comes down to if any element in y < 0.
+    # TODO: I think this comes down to if any element in y is < 0.
     if np.any((d_y > 0) & (props > 1.)):
         return 0.0
     # else choose 1. in this case
@@ -43,8 +43,7 @@ def int_point_qp(G: np.ndarray,
                  y_0: np.ndarray = None,
                  lam_0: np.ndarray = None,
                  maxiters: int = 50,
-                 tol: np.float64 = np.finfo(np.float64).eps,
-                 verbose = True
+                 tol: np.float64 = np.finfo(np.float64).eps
                  ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     '''
     Solves a convex quadratic programming (QP) problem with inequality
@@ -88,9 +87,6 @@ def int_point_qp(G: np.ndarray,
 
     tol : float, optional
         Tolerance for the convergence test. Default is machine epsilon for `np.float64`.
-
-    verbose : bool, optional
-        If True, prints iteration details. Default is True.
 
     Returns
     -------
@@ -411,8 +407,7 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
                                        b=-c_k,
                                        x_0=np.ones(x_k.size),
                                        tol=10e-5,
-                                       maxiters=15,
-                                       verbose=False)
+                                       maxiters=15)
 
         # Set p_lambda <- lambda_hat - lambda_k
         p_lam = lam_hat - lam_k

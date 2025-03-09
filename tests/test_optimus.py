@@ -31,7 +31,7 @@ class TestOptimus(unittest.TestCase):
 
         np.random.seed(7679448)
 
-    def perform_int_point_random(self, n, tol=0.01, verbose=False):
+    def perform_int_point_random(self, n, tol=0.01):
         '''Helper function to test the interior point method with random values.'''
         m = 2 * n
 
@@ -58,17 +58,8 @@ class TestOptimus(unittest.TestCase):
             A=A,
             b=b,
             x_0=x0.copy(),
-            tol=10e-5,
-            verbose=verbose
+            tol=10e-5
         )
-
-        if verbose:
-            print(f"SciPy: {res.x}")
-            print(f"Optimus: {x}")
-            print(f"SciPy: {fun(res.x)}")
-            print(f"Optimus: {fun(x)}")
-            print(f"SciPy: {np.linalg.norm(A@res.x - b, np.infty)}")
-            print(f"Optimus: {np.linalg.norm(A@x - b, np.infty)}")
 
         npt.assert_allclose(x, res.x, atol=tol)
 
@@ -107,7 +98,7 @@ class TestOptimus(unittest.TestCase):
 
         x0 = np.array([2.,0.])
         x, y, lam = int_point_qp(
-            G=G, c=c, A=A, b=b, x_0=x0.copy(), tol=10e-10, verbose=False
+            G=G, c=c, A=A, b=b, x_0=x0.copy(), tol=10e-10
         )
         
         npt.assert_allclose(x, np.array([1.4,1.7]))
@@ -151,7 +142,7 @@ class TestOptimus(unittest.TestCase):
             return x[0]**2/100 + x[1]**2 - 100
         
         x, y, lam = int_point_qp(
-            G=G, c=c, A=A, b=b, x_0=x0.copy(), tol=10e-5, verbose=False
+            G=G, c=c, A=A, b=b, x_0=x0.copy(), tol=10e-5
         )
 
         self.assertAlmostEqual(fun(x), -99.96, places=5)
