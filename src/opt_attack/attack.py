@@ -4,10 +4,11 @@ import logging
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 import tensorflow as tf
-from utils import eval_flat_pred
-from optimus import ls_sqp
+from opt_attack.utils import eval_flat_pred
+from opt_attack.optimus import ls_sqp
 from pathlib import Path
 from typing import Callable
+import multiprocessing
 
 
 SUCCESS = 0
@@ -21,6 +22,15 @@ class Dist(enum.Enum):
     LINF = 'LINF'
     L1 = 'L1'
     L2 = 'L2'
+
+    def compute_vec(self, x: np.ndarray, y: np.ndarray) -> float:
+        '''Computes the distance between two vectors'''
+        if self == Dist.L2:
+            return np.linalg.norm(x - y, ord=2)
+        elif self == Dist.L1:
+            return np.linalg.norm(x - y, ord=1)
+        else:
+            return np.linalg.norm(x - y, ord=np.inf)
 
 
 class Attack:
@@ -68,6 +78,11 @@ class Attack:
         '''Executes the binary search for the attack and stores the result.'''
         logger.info("START")
         self.original_input = original_input
+        # Convert original input to tensor
+        self.original_input_tensor = tf.convert_to_tensor(
+            self.original_input.reshape(-1,28,28,1),
+            dtype=tf.float32
+        )
         self.original_class = original_class
         self.target_class = target_class
         self.initial_guess = initial_guess
@@ -94,12 +109,6 @@ class Attack:
         # Set upper and lower bound for c
         right = c_right
         left = c_left
-
-        # Convert original input to tensor
-        self.original_input_tensor = tf.convert_to_tensor(
-            self.original_input.reshape(-1,28,28,1),
-            dtype=tf.float32
-        )
 
         # Evaluate on the right
         c = right
@@ -150,6 +159,79 @@ class Attack:
             count += 1
 
         # We can guarantee that we succeeded for at least one c
+        logger.info("END")
+        return SUCCESS
+
+    def parallel_attack(
+            self,
+            original_input,
+            original_class,
+            target_class,
+            initial_guess,
+            obj_fun: str,
+            c_start: float = 1e-02,
+            c_stop: float = 1.0,
+            c_num: int = 10
+        ) -> int:
+        '''Executes a parallel attack and stores the result.'''
+        logger.info("START")
+        self.original_input = original_input
+        # Convert original input to tensor
+        self.original_input_tensor = tf.convert_to_tensor(
+            self.original_input.reshape(-1,28,28,1),
+            dtype=tf.float32
+        )
+        self.original_class = original_class
+        self.target_class = target_class
+        self.initial_guess = initial_guess
+        # TODO: again this 10 maybe shouldn't be hardcoded
+        self.target_one_hot = tf.one_hot([self.target_class], 10)
+
+        # Choose objective function
+        if obj_fun == 'carlini':
+            fun = self._fun_carlini
+        elif obj_fun == 'szegedy':
+            fun = self._fun_szegedy
+        else:
+            msg = f"`{obj_fun}` function not implemented."
+            logger.error(msg)
+            raise NotImplementedError(msg)
+
+        # Clear previous result
+        self.res = {
+            'x': None,
+            'fun': None,
+            'nit': None
+        }
+
+        # Create the values of c
+        cs = np.linspace(start=c_start, stop=c_stop, num=c_num)
+
+        # List with tuples of arguments to pass to starmap
+        pool_args = [(fun, c) for c in cs]
+
+        # Let multiprocessing handle the pool
+        with multiprocessing.Pool(processes=len(cs)) as pool:
+            results = pool.starmap(self._minimize, pool_args)
+
+        # Retrieve the best result
+        best_dist = np.inf
+        for c, res in zip(cs, results):
+            res_x, res_fun, res_nit = res
+            if eval_flat_pred(res_x, self.model) == self.target_class:
+                dist = self.distance.compute_vec(res_x, self.original_input.flatten())
+                logger.info(f"Attack with c={c} was successful with distance={dist}")
+
+                if dist < best_dist:
+                    self.res['x'] = res_x
+                    self.res['fun'] = res_fun
+                    self.res['nit'] = res_nit
+
+        if self.res['x'] is None:
+            logger.error("No value for c worked.")
+            logger.info("END")
+            return FAILURE
+
         logger.info("END")
         return SUCCESS
 
