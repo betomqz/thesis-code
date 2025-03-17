@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 SHOW_CONSOLE = True
-LOGGER_FORMAT = '%(asctime)s %(name)s %(funcName)s %(levelname)s: %(message)s'
+LOGGER_FORMAT = '%(asctime)s %(name)s %(funcName)s %(levelname)s [%(process)d]: %(message)s'
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -176,6 +176,50 @@ class TestAttack(unittest.TestCase):
         logger.info("END")
         self.assertTrue(passed)
 
+    def test_optimus_szegedy_parallel_L2(self):
+        '''
+        Test attack using SQP, Szegedy's objective function, parallel attack,
+        and L2 distance.
+        '''
+        logger.info('START')
+        attacker = OptimusAttack(
+            self.softmaxmodel,
+            distance=Dist.L2,
+            maxiters_method=50,
+            tol=0.1
+        )
+        passed = self._perform_parallel_attack(
+            attacker=attacker, obj_fun='szegedy', c_num=5
+        )
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
+    def test_optimus_szegedy_parallel_L1(self):
+        '''
+        Test attack using SQP, Szegedy's objective function, parallel attack,
+        and L1 distance.
+        '''
+        logger.info('START')
+        attacker = OptimusAttack(
+            self.softmaxmodel,
+            distance=Dist.L1,
+            maxiters_method=20,
+            tol=0.1
+        )
+        passed = self._perform_parallel_attack(
+            attacker=attacker, obj_fun='szegedy', c_num=5
+        )
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
     def test_optimus_carlini_bin_search_L2(self):
         '''
         Test attack using SQP, Carlini's objective function, binary search, and
@@ -209,6 +253,50 @@ class TestAttack(unittest.TestCase):
             tol=0.2
         )
         passed = self._perform_bin_search(attacker=attacker, obj_fun='carlini')
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
+    def test_optimus_carlini_parallel_L2(self):
+        '''
+        Test attack using SQP, Carlini's objective function, parallel attack,
+        and L2 distance.
+        '''
+        logger.info('START')
+        attacker = OptimusAttack(
+            self.model,
+            distance=Dist.L2,
+            maxiters_method=20,
+            tol=0.1
+        )
+        passed = self._perform_parallel_attack(
+            attacker=attacker, obj_fun='carlini', c_stop=0.35, c_num=2
+        )
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
+    def test_optimus_carlini_parallel_L1(self):
+        '''
+        Test attack using SQP, Carlini's objective function, parallel attack,
+        and L1 distance.
+        '''
+        logger.info('START')
+        attacker = OptimusAttack(
+            self.model,
+            distance=Dist.L1,
+            maxiters_method=20,
+            tol=0.1
+        )
+        passed = self._perform_parallel_attack(
+            attacker=attacker, obj_fun='carlini', c_num=5
+        )
         if passed:
             logger.info("The attack was successful")
         else:
@@ -269,7 +357,31 @@ class TestAttack(unittest.TestCase):
             method='L-BFGS-B',
             options={'maxiter':2000, 'disp':0}
         )
-        passed = self._perform_parallel_attack(attacker=attacker, obj_fun='szegedy', c_stop=10.0)
+        passed = self._perform_parallel_attack(
+            attacker=attacker, obj_fun='szegedy', c_stop=10.0
+        )
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
+    def test_scipy_szegedy_parallel_L1(self):
+        '''
+        Test attack using SciPy's L-BFGS-B method, Szegedy's objective function,
+        parallel attack, and L1 distance.
+        '''
+        logger.info('START')
+        attacker = SciPyAttack(
+            self.softmaxmodel,
+            distance=Dist.L1,
+            method='L-BFGS-B',
+            options={'maxiter':2000, 'disp':0}
+        )
+        passed = self._perform_parallel_attack(
+            attacker=attacker, obj_fun='szegedy', c_stop=1.0
+        )
         if passed:
             logger.info("The attack was successful")
         else:
@@ -312,6 +424,50 @@ class TestAttack(unittest.TestCase):
             options={'maxiter':2000, 'disp':0}
         )
         passed = self._perform_bin_search(attacker=attacker, obj_fun='carlini')
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
+    def test_scipy_carlini_parallel_L2(self):
+        '''
+        Test attack using SciPy's L-BFGS-B method, Carlini's objective function,
+        parallel attack, and L2 distance.
+        '''
+        logger.info('START')
+        attacker = SciPyAttack(
+            self.model,
+            distance=Dist.L2,
+            method='L-BFGS-B',
+            options={'maxiter':2000, 'disp':0}
+        )
+        passed = self._perform_parallel_attack(
+            attacker=attacker, obj_fun='carlini', c_stop=1.0
+        )
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
+    def test_scipy_carlini_parallel_L1(self):
+        '''
+        Test attack using SciPy's L-BFGS-B method, Carlini's objective function,
+        parallel attack, and L1 distance.
+        '''
+        logger.info('START')
+        attacker = SciPyAttack(
+            self.model,
+            distance=Dist.L1,
+            method='L-BFGS-B',
+            options={'maxiter':2000, 'disp':0}
+        )
+        passed = self._perform_parallel_attack(
+            attacker=attacker, obj_fun='carlini', c_stop=10.0
+        )
         if passed:
             logger.info("The attack was successful")
         else:
