@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 SHOW_CONSOLE = True
-LOGGER_FORMAT = '%(asctime)s %(name)s %(funcName)s %(levelname)s [%(process)d]: %(message)s'
+LOGGER_FORMAT = '%(asctime)s %(name)s %(funcName)s %(levelname)s: %(message)s'
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
