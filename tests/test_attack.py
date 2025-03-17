@@ -104,6 +104,37 @@ class TestAttack(unittest.TestCase):
         )
         return result == 1
 
+    def _perform_parallel_attack(self, attacker: Attack, obj_fun, c_start=0.01, c_stop=1.0, c_num=10):
+        '''Helper function to run parallel attacks'''
+        # Original class will be 0
+
+        og_class, og_input = self.inputs[0]
+
+        # Start close to the target
+        initial_guess = np.clip(
+            self.inputs[og_class][1].flatten() + 0.1 * self.random_guess,
+            0., 1.
+        )
+
+        attacker.parallel_attack(
+            original_input=og_input,
+            original_class=og_class,
+            target_class=1,
+            initial_guess=initial_guess,
+            obj_fun=obj_fun,
+            c_start=c_start,
+            c_stop=c_stop,
+            c_num=c_num
+        )
+        attacker.save(path=self.log_path)
+
+        # See if test passed and log
+        result = utils.eval_flat_pred(
+            attacker.res['x'],
+            model=self.softmaxmodel if obj_fun == 'szegedy' else self.model
+        )
+        return result == 1
+
     # Tests using Optimus ------------------------------------------------------
     def test_optimus_szegedy_bin_search_L2(self):
         '''
@@ -219,6 +250,26 @@ class TestAttack(unittest.TestCase):
             options={'maxiter':2000, 'disp':0}
         )
         passed = self._perform_bin_search(attacker=attacker, obj_fun='szegedy')
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
+    def test_scipy_szegedy_parallel_L2(self):
+        '''
+        Test attack using SciPy's L-BFGS-B method, Szegedy's objective function,
+        parallel attack, and L2 distance.
+        '''
+        logger.info('START')
+        attacker = SciPyAttack(
+            self.softmaxmodel,
+            distance=Dist.L2,
+            method='L-BFGS-B',
+            options={'maxiter':2000, 'disp':0}
+        )
+        passed = self._perform_parallel_attack(attacker=attacker, obj_fun='szegedy', c_stop=10.0)
         if passed:
             logger.info("The attack was successful")
         else:
