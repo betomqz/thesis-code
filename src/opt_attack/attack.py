@@ -64,6 +64,29 @@ class Dist(enum.Enum):
         else:
             return np.linalg.norm(x - y, ord=np.inf)
 
+    def compute_tens(self, x: np.ndarray, y: np.ndarray) -> float:
+        '''
+        Compute the distance between two tensors using the selected norm. The
+        calculation is done using TensorFlow to allow the use of GradientTape.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            First input tensor.
+        y : np.ndarray
+            Second input tensor.
+
+        Returns
+        -------
+        float
+            The computed distance between the tensors.
+        '''
+        if self == Dist.L2:
+            return tf.sqrt(tf.reduce_sum(tf.square(x - y)))
+        elif self == Dist.L1:
+            return tf.reduce_sum(tf.abs(x - y))
+        else:
+            return tf.reduce_max(tf.abs(x - y))
 
 class Attack:
     '''
@@ -528,12 +551,7 @@ class Attack:
             max_z = tf.reduce_max(masked_pred)
 
             # Get distance from x0_t to x_t
-            if self.distance == Dist.L2:
-                d = tf.sqrt(tf.reduce_sum(tf.square(x_tensor - self.original_input_tensor))) # L2 norm
-            elif self.distance == Dist.L1:
-                d = tf.reduce_sum(tf.abs(x_tensor - self.original_input_tensor)) # L1 norm
-            else:
-                d = tf.reduce_max(tf.abs(x_tensor - self.original_input_tensor)) #L_infty norm
+            d = self.distance.compute_tens(x_tensor, self.original_input_tensor)
             val = d + c * tf.nn.relu(max_z - pred[self.target_class])
 
         gradients = tape.gradient(val, x_tensor).numpy().flatten()
@@ -579,12 +597,7 @@ class Attack:
             )
 
             # Get distance from x0_t to x_t
-            if self.distance == Dist.L2:
-                d = tf.sqrt(tf.reduce_sum(tf.square(x_tensor - self.original_input_tensor))) # L2 norm
-            elif self.distance == Dist.L1:
-                d = tf.reduce_sum(tf.abs(x_tensor - self.original_input_tensor)) # L1 norm
-            else:
-                d = tf.reduce_max(tf.abs(x_tensor - self.original_input_tensor)) #L_infty norm
+            d = self.distance.compute_tens(x_tensor, self.original_input_tensor)
             val = c * d + ce
 
         gradients = tape.gradient(val, x_tensor).numpy().flatten()
