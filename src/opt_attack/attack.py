@@ -4,6 +4,7 @@ import logging
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 import tensorflow as tf
+from keras import Model
 from opt_attack.utils import eval_flat_pred
 from opt_attack.optimus import ls_sqp
 from pathlib import Path
@@ -19,12 +20,43 @@ logger = logging.getLogger(__name__)
 
 
 class Dist(enum.Enum):
+    '''
+    Enumeration of vector distance metrics.
+
+    Members
+    -------
+    LINF : str
+        Infinity norm (maximum absolute difference).
+    L1 : str
+        L1 norm (sum of absolute differences).
+    L2 : str
+        L2 norm (Euclidean distance).
+
+    Methods
+    -------
+    compute_vec(x, y)
+        Computes the distance between two vectors using the selected norm.
+    '''
     LINF = 'LINF'
     L1 = 'L1'
     L2 = 'L2'
 
     def compute_vec(self, x: np.ndarray, y: np.ndarray) -> float:
-        '''Computes the distance between two vectors'''
+        '''
+        Compute the distance between two numpy vectors using the selected norm.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            First input vector.
+        y : np.ndarray
+            Second input vector.
+
+        Returns
+        -------
+        float
+            The computed distance between the vectors.
+        '''
         if self == Dist.L2:
             return np.linalg.norm(x - y, ord=2)
         elif self == Dist.L1:
@@ -34,13 +66,98 @@ class Dist(enum.Enum):
 
 
 class Attack:
+    '''
+    Abstract class to generate adversarial examples for a given model.
+
+    Attributes
+    ----------
+    model : Model
+        Model for which the adversarial examples will be generated.
+
+    distance : Dist
+        Distance metric to compare two images.
+
+    original_input : np.ndarray
+        Original input image as a NumPy array.
+
+    original_input_tensor : tf.Tensor
+        Original input image converted to a TensorFlow tensor.
+
+    original_class : int
+        Class index predicted by the model for the original input.
+
+    target_class : int
+        Target class for the adversarial example.
+
+    target_one_hot : tf.Tensor
+        One-hot encoded target class label as a TensorFlow tensor.
+
+    initial_guess : np.ndarray
+        Initial adversarial guess to start the optimization from.
+
+    res : dict
+        Dictionary containing the results of the attack. It includes:
+        - `'x'`: the adversarial example generated.
+        - `'fun'`: the evaluation of the minimization function on the adversarial
+        example.
+        - `'nit'`: the number of iterations taken by the optimization method to
+        find the example.
+
+    Methods
+    -------
+    binary_search_attack()
+        Perform a binary search to find the optimal constant `c` that balances
+        the classification loss against the perturbation distance.  This value
+        of `c` is used during optimization to generate effective adversarial
+        examples.
+
+    parallel_attack()
+        Try different values for `c` using multiple processes at the same time.
+
+    save()
+        Save the adversarial example to disk.
+    '''
 
     def __init__(
             self,
-            model,
+            model: Model,
             distance: Dist = Dist.L2
         ):
-        '''Init method.'''
+        '''
+        Initialize the Attack object.
+
+        Parameters
+        ----------
+        model : Model
+            The model to attack.
+
+        distance : Dist, optional
+            Distance metric used to compare images (default is L2).
+
+        Attributes Initialized
+        ----------------------
+        original_input : np.ndarray or None
+            The original input image (to be set later).
+
+        original_input_tensor : tf.Tensor or None
+            TensorFlow tensor version of the original input image (to be set
+            later).
+
+        original_class : int or None
+            The original predicted class of the input (to be set later).
+
+        target_class : int or None
+            The target class for the attack (to be set later).
+
+        initial_guess : np.ndarray or None
+            Initial guess for the adversarial example (to be set later).
+
+        res : dict
+            Dictionary to store attack results. Contains:
+            - `'x'`: The adversarial example (or `None` if not yet computed).
+            - `'fun'`: Value of the objective function at the adversarial example.
+            - `'nit'`: Number of iterations used to find the adversarial example.
+        '''
         self.model = model
         self.distance = distance
 
@@ -56,9 +173,38 @@ class Attack:
         }
 
     def _minimize(self, fun: Callable, c: float) -> tuple[np.ndarray, float, int]:
-        '''Executes the optimization method.
+        '''
+        Execute the optimization method to minimize the given objective function.
 
-        Returns (x, fun(x), nit)
+        This method is intended to be overridden by subclasses. It performs the
+        optimization to generate an adversarial example that minimizes a
+        trade-off between classification loss and perturbation distance,
+        weighted by the constant `c`.
+
+        Parameters
+        ----------
+        fun : Callable
+            The objective function to minimize.
+
+        c : float
+            Trade-off constant that balances classification loss and perturbation
+            distance in the objective.
+
+        Returns
+        -------
+        x : np.ndarray
+            The adversarial example found by the optimization.
+
+        fun_x : float
+            The value of the objective function evaluated at `x`.
+
+        nit : int
+            Number of iterations used by the optimization algorithm.
+
+        Raises
+        ------
+        NotImplementedError
+        If the method is not implemented by a subclass.
         '''
         msg = "`_minimize()` method not implemented."
         logger.error(msg)
@@ -66,16 +212,66 @@ class Attack:
 
     def binary_search_attack(
             self,
-            original_input,
-            original_class,
-            target_class,
-            initial_guess,
+            original_input: np.ndarray,
+            original_class: int,
+            target_class: int,
+            initial_guess: np.ndarray,
             obj_fun: str,
             maxiters_bs: int = 10,
             c_left: float = 1e-02,
             c_right: float = 1.0
         ) -> int:
-        '''Executes the binary search for the attack and stores the result.'''
+        '''
+        Execute a binary search to find the optimal constant `c` for the
+        adversarial attack.
+
+        This method searches for the best value of `c` using a binary search
+        approach. The selected objective function determines the loss used
+        during optimization. The results of the attack are stored in the `res`
+        attribute.
+
+        Parameters
+        ----------
+        original_input : np.ndarray
+            The original input image to be perturbed.
+
+        original_class : int
+            The class predicted by the model for the original input.
+
+        target_class : int
+            The desired target class for the adversarial attack.
+
+        initial_guess : np.ndarray
+            An initial guess for the adversarial example.
+
+        obj_fun : str
+            Objective function to use in the optimization. Options are:
+            - `'carlini'`: Uses Carlini's objective function.
+            - `'szegedy'`: Uses Szegedy's objective function.
+
+        maxiters_bs : int, optional
+            Maximum number of binary search iterations (default is 10).
+
+        c_left : float, optional
+            Lower bound of the binary search interval for the constant `c`
+            (default is 1e-2).
+
+        c_right : float, optional
+            Upper bound of the binary search interval for the constant `c`
+            (default is 1.0).
+
+        Returns
+        -------
+        int
+            Status code:
+            - SUCCESS = 0
+            - FAILURE = 1
+
+        Raises
+        ------
+        ValueError
+            If an unsupported objective function is provided.
+        '''
         logger.info("START")
         self.original_input = original_input
         # Convert original input to tensor
@@ -164,16 +360,68 @@ class Attack:
 
     def parallel_attack(
             self,
-            original_input,
-            original_class,
-            target_class,
-            initial_guess,
+            original_input: np.ndarray,
+            original_class: int,
+            target_class: int,
+            initial_guess: np.ndarray,
             obj_fun: str,
             c_start: float = 1e-02,
             c_stop: float = 1.0,
             c_num: int = 10
         ) -> int:
-        '''Executes a parallel attack and stores the result.'''
+        '''
+        Execute the adversarial attack in parallel over a range of constants
+        `c`.
+
+        This method evaluates the attack across multiple values of `c`,
+        generated using `np.linspace` from `c_start` to `c_stop` with `c_num`
+        steps. Each attack is run in a separate process (using multiprocessing,
+        not true parallelism). The result corresponding to the adversarial
+        example with the smallest distance (as defined by the configured `Dist`
+        metric) but classified as `target_classs` is selected and stored in the
+        `res` attribute.
+
+        Parameters
+        ----------
+        original_input : np.ndarray
+            The original input image to be perturbed.
+
+        original_class : int
+            The class predicted by the model for the original input.
+
+        target_class : int
+            The desired target class for the adversarial attack.
+
+        initial_guess : np.ndarray
+            An initial guess for the adversarial example.
+
+        obj_fun : str
+            Objective function to use in the optimization. Options are:
+            - `'carlini'`: Uses Carlini's objective function.
+            - `'szegedy'`: Uses Szegedy's objective function.
+
+        c_start : float, optional
+            Starting value of the range of `c` values (default is 1e-2).
+
+        c_stop : float, optional
+            Ending value of the range of `c` values (default is 1.0).
+
+        c_num : int, optional
+            Number of `c` values to evaluate between `c_start` and `c_stop`
+            (default is 10).
+
+        Returns
+        -------
+        int
+            Status code:
+            - SUCCESS = 0
+            - FAILURE = 1
+
+        Raises
+        ------
+        ValueError
+            If an unsupported objective function is provided.
+        '''
         logger.info("START")
         self.original_input = original_input
         # Convert original input to tensor
