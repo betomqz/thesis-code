@@ -253,7 +253,7 @@ Enumeration of vector distance metrics.
 
     L2 norm (Euclidean distance).
 
-#### Methods
+#### `compute_vec`
 
 ```python
 def compute_vec(self, x: np.ndarray, y: np.ndarray) -> float:
@@ -276,6 +276,8 @@ Compute the distance between two numpy vectors using the selected norm.
 - **d** : _float_
 
     The computed distance between the vectors.
+
+#### `compute_tens`
 
 ```python
 def compute_tens(self, x: np.ndarray, y: np.ndarray) -> float:
@@ -351,7 +353,7 @@ Abstract class to generate adversarial examples for a given model.
     - `'nit'`: the number of iterations taken by the optimization method to
     find the example.
 
-#### Methods
+#### `__init__`
 
 ```python
 def __init__(
@@ -372,6 +374,8 @@ Initialize the Attack object.
 - **distance** : _Dist_, _optional_
 
     Distance metric used to compare images (default is L2).
+
+#### `_minimize`
 
 ```python
 def _minimize(self, fun: Callable, c: float) -> tuple[np.ndarray, float, int]:
@@ -414,6 +418,8 @@ weighted by the constant `c`.
 - `NotImplementedError`
 
     If the method is not implemented by a subclass.
+
+#### binary_search_attack
 
 ```python
 def binary_search_attack(
@@ -487,6 +493,8 @@ attribute.
 - `ValueError`
 
     If an unsupported objective function is provided.
+
+#### parallel_attack
 
 ```python
 def parallel_attack(
@@ -564,6 +572,8 @@ metric) but classified as `target_classs` is selected and stored in the
 
     If an unsupported objective function is provided.
 
+#### _fun_carlini
+
 ```python
 def _fun_carlini(
     self,
@@ -595,6 +605,8 @@ minimized by `_minimize`.
 
     Gradient of the objective function with respect to `x`.
 
+#### _fun_szegedy
+
 ```python
 def _fun_szegedy(
     self,
@@ -625,6 +637,8 @@ minimized by `_minimize`.
 - **grad** : _np.ndarray_
 
     Gradient of the objective function with respect to `x`.
+
+#### save
 
 ```python
 def save(self, path: str | Path, visualize: bool = False) -> None:
@@ -692,7 +706,7 @@ L-BFGS-B, trust-constr) to solve the adversarial optimization problem.
     List of `(min, max)` bounds for each input dimension. Currently hard-coded
     to constrain each pixel to $[0.0, 1.0]$.
 
-#### Methods
+#### __init__
 
 ```python
 def __init__(
@@ -725,6 +739,8 @@ Initialize a SciPyAttack instance.
 
     Dictionary of additional options to pass to the optimizer (default
     is None).
+
+#### _minimize
 
 ```python
 def _minimize(self, fun: Callable, c: float) -> tuple[np.ndarray, float, int]:
@@ -788,7 +804,7 @@ constraints.
 
     Convergence tolerance for the optimization.
 
-#### Methods
+#### __init__
 
 ```python
 def __init__(
@@ -830,6 +846,8 @@ Initialize an OptimusAttack instance.
 
     Convergence tolerance for the optimization (default is 1.1).
 
+#### _restr
+
 ```python
 def _restr(
     self,
@@ -859,6 +877,8 @@ $$c(x) = [x_1, x_2, ..., x_n, 1 - x_1, 1 - x_2, ..., 1 - x_n]$$
 - **A** : _np.ndarray_
 
     Jacobian matrix of the constraints.
+
+#### _minimize
 
 ```python
 def _minimize(self, fun: Callable, c: float) -> tuple[np.ndarray, float, int]:
