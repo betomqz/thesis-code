@@ -39,8 +39,8 @@ subject to
 A * x >= b
 ```
 
-Parameters
-----------
+#### Parameters
+
 - **G** : _ndarray_
 
     Symmetric and positive semidefinite `nxn` matrix.
@@ -77,8 +77,8 @@ Parameters
 
     Tolerance for the convergence test. Default is machine epsilon for `np.float64`.
 
-Returns
--------
+#### Returns
+
 - **x** : _ndarray_
 
     The optimal solution.
@@ -100,8 +100,8 @@ def _bfgs(s_k: np.ndarray, y_k: np.ndarray, B_k: np.ndarray) -> np.ndarray:
 Calculates an update to the Hessian using a damped BFGS approach described
 by Nocedal in Procedure 18.2 (p. 537) to guarantee that the update is s.p.d.
 
-Parameters
-----------
+#### Parameters
+
 - **s_k** : _ndarray_
 
     Vector representing the change for x in current iteration (alpha_k *
@@ -115,8 +115,8 @@ Parameters
 
     Approximation to be updated.
 
-Returns
--------
+#### Returns
+
 **B_k** : _ndarray_
     Updated approximation to the Hessian
 
@@ -127,8 +127,8 @@ def _l_bfgs(S_k: np.ndarray, Y_k: np.ndarray) -> np.ndarray:
 Calculates an approximation `B_k` to the Hessian using a limited-memory
 updating approach described by Nocedal (eq. 7.29, p. 182)
 
-Parameters
-----------
+#### Parameters
+
 - **S_k** : _ndarray_
 
     `n x m` matrix with the `m` most recent `s_i` vectors
@@ -137,8 +137,8 @@ Parameters
 
     `n x m` matrix with the `m` most recent `y_i` vectors
 
-Returns
--------
+#### Returns
+
 - **B_k** : _ndarray_
 
     Approximation to the Hessian
@@ -164,8 +164,8 @@ Solves a constrained optimization problem using Sequential Quadratic
 Programming (SQP) with a line search approach. Based on Algorithm 18.3 (p.
 545) from Nocedal's book.
 
-Parameters
-----------
+#### Parameters
+
 - **fun** : _callable_
 
     Function to minimize. Must return f(x) and its gradient.
@@ -216,8 +216,8 @@ Parameters
     Tolerance for the convergence test. Default is machine epsilon for
     ``np.float64``.
 
-Returns
--------
+#### Returns
+
 - **x_opt** : _ndarray_
 
     The optimal solution found by the algorithm, or the value at the last
