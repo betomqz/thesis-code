@@ -227,7 +227,54 @@ Returns
 
     The corresponding Lagrange multipliers at the optimal point.
 
-## `attack`
+## [`attack`](src/opt_attack/attack.py)
+
+### `Dist` enumeration
+
+```python
+class Dist(enum.Enum):
+```
+
+Enumeration of vector distance metrics.
+
+#### Members
+
+- **LINF** : _str_
+
+    Infinity norm (maximum absolute difference).
+
+- **L1** : _str_
+
+    L1 norm (sum of absolute differences).
+
+- **L2** : _str_
+
+    L2 norm (Euclidean distance).
+
+#### Methods
+
+```python
+def compute_vec(self, x: np.ndarray, y: np.ndarray) -> float:
+```
+
+Compute the distance between two numpy vectors using the selected norm.
+
+##### Parameters
+
+- **x** : _np.ndarray_
+
+    First input vector.
+
+- **y** : _np.ndarray_
+
+    Second input vector.
+
+##### Returns
+
+- **d** : _float_
+
+    The computed distance between the vectors.
+
 
 ## `utils`
 
