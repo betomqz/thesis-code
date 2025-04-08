@@ -1,9 +1,9 @@
 # Thesis - Code
 
-Author: José Alberto Márquez Luján
-Institution: ITAM
-Degree: Bsc in Applied Mathematics and Bsc in Computer Engineering
-Advisor: Dr. Andreas Wachtel
+- Author: José Alberto Márquez Luján
+- Institution: ITAM
+- Degree: Bsc in Applied Mathematics and Bsc in Computer Engineering
+- Advisor: Dr. Andreas Wachtel
 
 ## Overview
 
@@ -14,6 +14,9 @@ minimizing the change required to the images.
 
 It was developed as part of my undergraduate thesis in Applied Mathematics and
 Computer Engineering.
+
+![example](example.png)\
+_Example of the output: a zero that the model classifies as a one_.
 
 ## Use cases
 
@@ -29,7 +32,7 @@ constraints. The algorithm was obtained from Jorge Nocedal and Stephen J.
 Wright's book, _Numerical Optimization_. This algorithm can be used in a
 different context than the generation of adversarial examples.
 
-## Instalation
+## Installation
 
 This project was developed using Python 3.10.16.
 
@@ -49,23 +52,42 @@ source thesisenv/bin/activate
 
 3. Install the project
 
-```
+```bash
 pip install -e .
 ```
 
 ## Unit tests
-
-Example on how to run `test_scipy_szegedy_parallel_L2`:
-
-```
-python -m unittest tests.test_attack.TestAttack.test_scipy_szegedy_parallel_L2
-```
 
 To run unit tests for `optimus.py`:
 
 ```bash
 python -m unittest tests.test_optimus
 ```
+
+These tests cover convergence on some numerical optimization problems.
+
+To run unit tests for `attack.py` (**not** recommended):
+
+```bash
+python -m unittest tests.test_attack
+```
+
+It is not recommended because the tests can take a long time.
+
+The alternative is to run each test separately. For example, to run
+`test_scipy_szegedy_parallel_L2`:
+
+```bash
+python -m unittest tests.test_attack.TestAttack.test_scipy_szegedy_parallel_L2
+```
+
+Generated adversarial images and logs are saved in the `logs/` directory after
+each run.
+
+## Sample notebooks
+
+Some sample notebooks with demos can be found in [`notebooks/`](notebooks/),
+though they're not necessarily up-to-date.
 
 # `opt_attack` documentation
 
