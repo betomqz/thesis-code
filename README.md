@@ -1,9 +1,68 @@
 # Thesis - Code
 
-This is the repository for the code for my bachelor's thesis.
-Everything is implemented using Python.
+Author: José Alberto Márquez Luján
+Institution: ITAM
+Degree: Bsc in Applied Mathematics and Bsc in Computer Engineering
+Advisor: Dr. Andreas Wachtel
 
-# `opt_attack`
+## Overview
+
+This project implements a numerical optimization algorithm using Sequential
+Quadratic Programming (SQP) with an interior-point method. The goal is to find
+adversarial perturbations that cause a neural network to misclassify images,
+minimizing the change required to the images.
+
+It was developed as part of my undergraduate thesis in Applied Mathematics and
+Computer Engineering.
+
+## Use cases
+
+The code found here can be used for two main purposes:
+
+1. Adversarial examples generation: The infrastructure to generate adversarial
+examples for a given model is provided here, allowing the user to change
+objective functions, optimization methods, custom strategies, and distance
+metrics.
+2. Numerical optimization research: A big part of the effort in this project was
+put into understanding and implementing a SQP algorithm with inequiality
+constraints. The algorithm was obtained from Jorge Nocedal and Stephen J.
+Wright's book, _Numerical Optimization_. This algorithm can be used in a
+different context than the generation of adversarial examples.
+
+## Instalation
+
+This project was developed using Python 3.10.16.
+
+1. Clone the repository
+
+```bash
+git clone https://github.com/betomqz/thesis-code.git
+cd thesis-code
+```
+
+2. Create and activate a virtual environment
+
+```bash
+python -m venv thesisenv
+source thesisenv/bin/activate
+```
+
+3. Install the project
+
+```
+pip install -e .
+```
+
+## Unit tests
+
+Example on how to run `test_scipy_szegedy_parallel_L2`:
+
+```
+python -m unittest tests.test_attack.TestAttack.test_scipy_szegedy_parallel_L2
+```
+
+
+# `opt_attack` documentation
 
 ## [`optimus`](src/opt_attack/optimus.py)
 
@@ -911,11 +970,3 @@ Quadratic Programming (SQP).
 - **nit** : _int_
 
     Number of iterations taken by the optimizer.
-
-## Unit tests
-
-Example on how to run `test_scipy_szegedy_parallel_L2`:
-
-```
-python -m unittest tests.test_attack.TestAttack.test_scipy_szegedy_parallel_L2
-```
