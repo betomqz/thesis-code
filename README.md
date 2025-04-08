@@ -61,6 +61,11 @@ Example on how to run `test_scipy_szegedy_parallel_L2`:
 python -m unittest tests.test_attack.TestAttack.test_scipy_szegedy_parallel_L2
 ```
 
+To run unit tests for `optimus.py`:
+
+```bash
+python -m unittest tests.test_optimus
+```
 
 # `opt_attack` documentation
 
@@ -970,3 +975,4 @@ Quadratic Programming (SQP).
 - **nit** : _int_
 
     Number of iterations taken by the optimizer.
+
