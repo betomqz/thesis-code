@@ -18,6 +18,41 @@ Computer Engineering.
 ![example](example.png)\
 _Example of the output: a zero that the model classifies as a one_.
 
+- [Thesis - Code](#thesis---code)
+  - [Overview](#overview)
+  - [Use cases](#use-cases)
+  - [Installation](#installation)
+  - [Unit tests](#unit-tests)
+  - [Sample notebooks](#sample-notebooks)
+- [`opt_attack` documentation](#opt_attack-documentation)
+  - [`optimus`](#optimus)
+    - [`int_point_qp`](#int_point_qp)
+    - [Hessian approximations](#hessian-approximations)
+    - [Line Search Sequential Quadratic Programming](#line-search-sequential-quadratic-programming)
+  - [`attack`](#attack)
+    - [`Dist` enumeration](#dist-enumeration)
+      - [Members](#members)
+      - [`compute_vec`](#compute_vec)
+      - [`compute_tens`](#compute_tens)
+    - [`Attack` class](#attack-class)
+      - [Attributes](#attributes)
+      - [`__init__`](#__init__)
+      - [`_minimize`](#_minimize)
+      - [binary\_search\_attack](#binary_search_attack)
+      - [parallel\_attack](#parallel_attack)
+      - [\_fun\_carlini](#_fun_carlini)
+      - [\_fun\_szegedy](#_fun_szegedy)
+      - [save](#save)
+    - [`SciPyAttack` subclass](#scipyattack-subclass)
+      - [Attributes](#attributes-1)
+      - [__init__](#init)
+      - [\_minimize](#_minimize-1)
+    - [`OptimusAttack` subclass](#optimusattack-subclass)
+      - [Attributes](#attributes-2)
+      - [__init__](#init-1)
+      - [\_restr](#_restr)
+      - [\_minimize](#_minimize-2)
+
 ## Use cases
 
 The code found here can be used for two main purposes:
