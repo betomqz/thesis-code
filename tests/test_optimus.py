@@ -4,20 +4,28 @@ import numpy.testing as npt
 import logging
 from opt_attack.optimus import int_point_qp, ls_sqp, _find_alpha
 from scipy.optimize import rosen, rosen_der, rosen_hess, minimize, LinearConstraint
+from pathlib import Path
 
 
 # Log to the console as well
 SHOW_CONSOLE = False
 
+logger = logging.getLogger()
+
 class TestOptimus(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # Log to logs/test_optimus. Create path if it doesn't exist
+        log_parent_path = Path('logs/test_optimus/')
+        log_parent_path.mkdir(parents=True, exist_ok=True)
+        log_path = log_parent_path.joinpath('tests.log')
+
         # Logger setup. Write everything to a file (clear on each run) and only
         # show warnings in console if SHOW_CONSOLE is True
         logger_format = '%(asctime)s %(funcName)s %(levelname)s: %(message)s'
         logging.basicConfig(
-            filename='tmp/unittests.log',
+            filename=log_path,
             filemode='w',
             level=logging.DEBUG,
             format=logger_format
@@ -65,25 +73,36 @@ class TestOptimus(unittest.TestCase):
 
     def test_int_point_qp_random_10(self):
         '''Test interior point method with random values for n=10'''
+        logger.info("START")
         self.perform_int_point_random(10)
+        logger.info("STOP")
 
     def test_int_point_qp_random_20(self):
         '''Test interior point method with random values for n=20'''
+        logger.info("START")
         self.perform_int_point_random(20)
+        logger.info("STOP")
 
     def test_int_point_qp_random_50(self):
         '''Test interior point method with random values for n=50'''
+        logger.info("START")
         self.perform_int_point_random(50)
+        logger.info("STOP")
 
     def test_int_point_qp_random_100(self):
         '''Test interior point method with random values for n=100'''
+        logger.info("START")
         self.perform_int_point_random(100)
+        logger.info("STOP")
     
     def test_int_point_qp_random_200(self):
         '''Test interior point method with random values for n=200'''
+        logger.info("START")
         self.perform_int_point_random(200)
+        logger.info("STOP")
 
     def test_int_point_nocedal_475(self):
+        logger.info("START")
         '''Test for problem on p. 475 from (Nocedal)'''
         G = np.array([[2,0],[0,2]])
         c = np.array([-2,-5])
@@ -102,8 +121,10 @@ class TestOptimus(unittest.TestCase):
         )
         
         npt.assert_allclose(x, np.array([1.4,1.7]))
+        logger.info("STOP")
 
     def test_hs21(self):
+        logger.info("START")
         '''
         Perform the following test:
         Model hs21
@@ -146,6 +167,7 @@ class TestOptimus(unittest.TestCase):
         )
 
         self.assertAlmostEqual(fun(x), -99.96, places=5)
+        logger.info("STOP")
 
     def test_positive_direction(self):
         '''Test when d_y is positive and should return a valid alpha'''
@@ -216,32 +238,44 @@ class TestOptimus(unittest.TestCase):
         npt.assert_allclose(x, np.ones(n), atol=tol)
 
     def test_ls_sqp_rosenbrock_10(self):
+        logger.info("START")
         '''Test line search SQP with 10-dimension Rosenbrock function'''
         self.perform_rosenbrock_ls_sqp(10, 0.1)
+        logger.info("STOP")
 
     def test_ls_sqp_rosenbrock_20(self):
+        logger.info("START")
         '''Test line search SQP with 20-dimension Rosenbrock function'''
         self.perform_rosenbrock_ls_sqp(20, 0.1)
+        logger.info("STOP")
 
     def test_ls_sqp_rosenbrock_50(self):
+        logger.info("START")
         '''Test line search SQP with 50-dimension Rosenbrock function'''
         self.perform_rosenbrock_ls_sqp(50, 0.1)
+        logger.info("STOP")
 
     def test_ls_sqp_rosenbrock_100(self):
+        logger.info("START")
         '''Test line search SQP with 100-dimension Rosenbrock function'''
         self.perform_rosenbrock_ls_sqp(100, 0.1)
+        logger.info("STOP")
 
     def test_ls_sqp_rosenbrock_200(self):
+        logger.info("START")
         '''Test line search SQP with 200-dimension Rosenbrock function'''
         self.perform_rosenbrock_ls_sqp(200, 0.1)
+        logger.info("STOP")
 
     def test_ls_sqp_rosenbrock_100_true_hess(self):
+        logger.info("START")
         '''
         Test line search SQP with 100-dimension Rosenbrock function using the
         true hessian. We can do this since the restrictions are linear, so the
         hessian of the lagrangian is the same as the hessian of f
         '''
         self.perform_rosenbrock_ls_sqp(100, 0.1, hessian=rosen_hess)
+        logger.info("STOP")
 
 
 if __name__ == "__main__":
