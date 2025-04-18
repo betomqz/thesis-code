@@ -413,7 +413,6 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
         p_lam = lam_hat - lam_k
 
         # Choose mu_k to satisfy (18.36) with sigma=1
-        count_mu = 0
         if c_k_norm > 0:
             mess = np.dot(grad_k, p_k) + 0.5 * np.dot(p_k, np.dot(B_k, p_k))
             mess /= (1 - rho) * c_k_norm
@@ -473,11 +472,6 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
         grad_k_old = grad_k.copy()
         A_k_old = A_k.copy()
 
-        # If something went wrong with finding mu_k, reset it to 1
-        if count_mu == 15:
-            logger.warning("Maximum value for mu reached")
-            mu_k = 1
-
         # If something went wrong with line search, warn
         if count_ls == 30:
             logger.warning("Maximum number of iterations achieved for line \
@@ -492,9 +486,9 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
             logger.info("END")
             return x_k, lam_k
 
-        # TODO: better use a logger.
         logger.info(f"iter {k}:\n" +
               f" - ||kkt||: {kkt_norm}\n" +
+              f" - mu_k: {mu_k}\n" +
               f" - alpha_k: {alpha_k}")
 
     logger.warning(f"Maximum number of iterations achieved: {maxiters}")
