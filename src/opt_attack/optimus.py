@@ -376,7 +376,7 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
     c_k, A_k = restr(x_k) # restr must return both c(x) and A(x)
 
     # || [c_k]^- ||_1: see (15.24)
-    c_k_norm = la.norm(np.maximum(0, -c_k), ord=1)
+    c_k_norm = np.maximum(0, -c_k).sum()
 
     # Choose initial nxn s.p.d. Hessian approximation B_0
     B_k = B_0
@@ -431,7 +431,7 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
             s_k = alpha_k * p_k
             f_k, grad_k = fun(x_k + s_k, *args)
             c_k, A_k = restr(x_k + s_k)
-            c_k_norm = la.norm(np.maximum(0, -c_k), ord=1)
+            c_k_norm = np.maximum(0, -c_k).sum()
 
             # Compute phi_1
             phi = f_k + mu_k * c_k_norm
@@ -488,6 +488,7 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
 
         logger.info(f"iter {k}:\n" +
               f" - ||kkt||: {kkt_norm}\n" +
+              f" - ||c_k||_1: {c_k_norm}\n" +
               f" - mu_k: {mu_k}\n" +
               f" - alpha_k: {alpha_k}")
 
