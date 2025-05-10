@@ -407,7 +407,7 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
                                        b=-c_k,
                                        x_0=np.ones(x_k.size),
                                        tol=10e-5,
-                                       maxiters=15)
+                                       maxiters=20)
 
         # Set p_lambda <- lambda_hat - lambda_k
         p_lam = lam_hat - lam_k
@@ -451,6 +451,21 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
         # kkt conditions
         kkt = grad_k - np.dot(A_k.T, lam_k)
 
+        k += 1
+        # If stopping criteria is met, return.
+        kkt_norm = la.norm(kkt, np.infty)
+        if kkt_norm <= tol:
+            logger.info("Solution found!")
+            logger.info(f"iter {k}:\n - x: {x_k}\n - l: {lam_k}")
+            logger.info("END")
+            return x_k, lam_k
+
+        logger.info(f"iter {k}:\n" +
+              f" - ||kkt||: {kkt_norm}\n" +
+              f" - ||c_k||_1: {c_k_norm}\n" +
+              f" - mu_k: {mu_k}\n" +
+              f" - alpha_k: {alpha_k}")
+
         # Define y_k as in (18.13)
         y_k = kkt - (grad_k_old - np.dot(A_k_old.T,lam_k))
 
@@ -476,21 +491,6 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
         if count_ls == 30:
             logger.warning("Maximum number of iterations achieved for line \
                            search")
-
-        k += 1
-        # If stopping criteria is met, return.
-        kkt_norm = la.norm(kkt, np.infty)
-        if kkt_norm <= tol:
-            logger.info("Solution found!")
-            logger.info(f"iter {k}:\n - x: {x_k}\n - l: {lam_k}")
-            logger.info("END")
-            return x_k, lam_k
-
-        logger.info(f"iter {k}:\n" +
-              f" - ||kkt||: {kkt_norm}\n" +
-              f" - ||c_k||_1: {c_k_norm}\n" +
-              f" - mu_k: {mu_k}\n" +
-              f" - alpha_k: {alpha_k}")
 
     logger.warning(f"Maximum number of iterations achieved: {maxiters}")
     logger.info("END")
