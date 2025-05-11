@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import logging
-from opt_attack.attack import Attack, OptimusAttack, SciPyAttack, Dist
+from opt_attack.attack import Attack, OptimusAttack, SciPyAttack, Dist, SUCCESS
 from keras import models
 from opt_attack import utils
 from pathlib import Path
@@ -72,6 +72,26 @@ class TestAttack(unittest.TestCase):
         '''Remove file handler from root logger after test'''
         logger.removeHandler(self.file_handler)
         self.file_handler.close()
+
+    def _perform_singleton(self, attacker: Attack, obj_fun, c=1.0):
+        '''Helper function to run singleton attacks'''
+        # Original class will be 0
+        og_class, og_input = self.inputs[0]
+
+        # Random start
+        initial_guess = self.random_guess
+
+        result = attacker.singleton_attack(
+            original_input=og_input,
+            original_class=og_class,
+            target_class=1,
+            initial_guess=initial_guess,
+            obj_fun=obj_fun,
+            c=c,
+        )
+        attacker.save(path=self.log_path)
+
+        return result == SUCCESS
 
     def _perform_bin_search(self, attacker: Attack, obj_fun, c_left=0.01, c_right=2.0):
         '''Helper function to run binary search attacks'''
@@ -305,6 +325,26 @@ class TestAttack(unittest.TestCase):
         self.assertTrue(passed)
 
     # Tests using SciPy --------------------------------------------------------
+    def test_scipy_szegedy_singleton_L2(self):
+        '''
+        Test attack using SciPy's L-BFGS-B method, Szegedy's objective function,
+        singleton attack, and L2 distance.
+        '''
+        logger.info('START')
+        attacker = SciPyAttack(
+            self.softmaxmodel,
+            distance=Dist.L2,
+            method='L-BFGS-B',
+            options={'maxiter':2000, 'disp':0}
+        )
+        passed = self._perform_singleton(attacker=attacker, obj_fun='szegedy', c=0.01)
+        if passed:
+            logger.info("The attack was successful")
+        else:
+            logger.warning("The attack was not successful")
+        logger.info("END")
+        self.assertTrue(passed)
+
     def test_scipy_szegedy_bin_search_L2(self):
         '''
         Test attack using SciPy's L-BFGS-B method, Szegedy's objective function,
