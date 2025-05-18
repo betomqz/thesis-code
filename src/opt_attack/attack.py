@@ -233,6 +233,102 @@ class Attack:
         logger.error(msg)
         raise NotImplementedError(msg)
 
+    def singleton_attack(
+            self,
+            original_input: np.ndarray,
+            original_class: int,
+            target_class: int,
+            initial_guess: np.ndarray,
+            obj_fun: str,
+            c: float
+        ) -> int:
+        '''
+        Performs a single optimization attempt to generate an adversarial
+        example.
+
+        This method attempts to generate an adversarial example by minimizing
+        the selected objective function using a fixed constant `c`. This method
+        performs only one optimization run with the provided value. The results
+        of the attack are stored in the `res` attribute.
+
+        Parameters
+        ----------
+        original_input : np.ndarray
+            The original input image to be perturbed.
+
+        original_class : int
+            The class predicted by the model for the original input.
+
+        target_class : int
+            The desired target class for the adversarial attack.
+
+        initial_guess : np.ndarray
+            An initial guess for the adversarial example.
+
+        obj_fun : str
+            Objective function to use in the optimization. Options are:
+            - `'carlini'`: Uses Carlini's objective function.
+            - `'szegedy'`: Uses Szegedy's objective function.
+
+        c : float
+            Constant that balances the importance of the objective function
+            during optimization.
+
+        Returns
+        -------
+        int
+            Status code:
+            - SUCCESS = 0
+            - FAILURE = 1
+        '''
+        logger.info("START")
+        self.original_input = original_input
+        # Convert original input to tensor
+        self.original_input_tensor = tf.convert_to_tensor(
+            self.original_input.reshape(-1,28,28,1),
+            dtype=tf.float32
+        )
+        self.original_class = original_class
+        self.target_class = target_class
+        self.initial_guess = initial_guess
+        # TODO: again this 10 maybe shouldn't be hardcoded
+        self.target_one_hot = tf.one_hot([self.target_class], 10)
+
+        # Choose objective function
+        if obj_fun == 'carlini':
+            fun = self._fun_carlini
+        elif obj_fun == 'szegedy':
+            fun = self._fun_szegedy
+        else:
+            msg = f"`{obj_fun}` function not implemented."
+            logger.error(msg)
+            raise NotImplementedError(msg)
+
+        # Clear previous result
+        self.res = {
+            'x': None,
+            'fun': None,
+            'nit': None
+        }
+
+        logger.info(f"Performing singleton attack. c:{c}")
+        res_x, res_fun, res_nit = self._minimize(fun, c)
+
+        # Store the results, even it the attack didn't succeed
+        self.res['x'] = res_x
+        self.res['fun'] = res_fun
+        self.res['nit'] = res_nit
+
+        logger.info("END")
+        # If res.x isn't classified as the target, return FAILURE.
+        if eval_flat_pred(res_x, self.model) != self.target_class:
+            logger.error(f"Singleton attack was not successful")
+            return FAILURE
+        else:
+            # Attack was successful
+            logger.info(f"Singleton attack was successful!")
+            return SUCCESS
+
     def binary_search_attack(
             self,
             original_input: np.ndarray,
