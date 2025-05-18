@@ -243,7 +243,43 @@ class Attack:
             c: float
         ) -> int:
         '''
-        TODO: add doc
+        Performs a single optimization attempt to generate an adversarial
+        example.
+
+        This method attempts to generate an adversarial example by minimizing
+        the selected objective function using a fixed constant `c`. This method
+        performs only one optimization run with the provided value. The results
+        of the attack are stored in the `res` attribute.
+
+        Parameters
+        ----------
+        original_input : np.ndarray
+            The original input image to be perturbed.
+
+        original_class : int
+            The class predicted by the model for the original input.
+
+        target_class : int
+            The desired target class for the adversarial attack.
+
+        initial_guess : np.ndarray
+            An initial guess for the adversarial example.
+
+        obj_fun : str
+            Objective function to use in the optimization. Options are:
+            - `'carlini'`: Uses Carlini's objective function.
+            - `'szegedy'`: Uses Szegedy's objective function.
+
+        c : float
+            Constant that balances the importance of the objective function
+            during optimization.
+
+        Returns
+        -------
+        int
+            Status code:
+            - SUCCESS = 0
+            - FAILURE = 1
         '''
         logger.info("START")
         self.original_input = original_input
