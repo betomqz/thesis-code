@@ -44,6 +44,26 @@ def load_mnist_data():
 
     return x_train, x_test, y_train, y_test
 
+def get_inputs_tuples():
+    '''
+    Returns the inputs in ordered tuples corresponding to each digit
+    '''
+    x_train, x_test, y_train, y_test = load_mnist_data()
+    # Choose inputs
+    inputs = [
+        (0, x_test[3]),
+        (1, x_test[2]),
+        (2, x_test[1]),
+        (3, x_test[18]),
+        (4, x_test[4]),
+        (5, x_test[8]),
+        (6, x_test[11]),
+        (7, x_test[0]),
+        (8, x_test[61]),
+        (9, x_test[7])
+    ]
+    return inputs
+
 
 def train_nn_mnist(save_path='models/', with_softmax=False):
     
@@ -130,6 +150,13 @@ def vis_flat_mnist(x, save=False, filename="fig.png", format="png"):
         plt.savefig(filename, format=format, pad_inches=0, bbox_inches='tight')
     plt.show()
 
+def save_flat_mnist_fig(x, fname):
+    temp = x.reshape(28,28,1)
+    fig, ax = plt.subplots()
+    ax.set_axis_off()
+    plt.imshow(temp, cmap='gray_r')
+    plt.savefig(fname, pad_inches=0, bbox_inches='tight')
+    plt.close(fig)
 
 def eval_flat_pred(x, model):
     if x is None:
