@@ -5,7 +5,7 @@ import shutil
 import argparse
 from keras import models
 from pathlib import Path
-from opt_attack.attack import SciPyAttack, Dist, SUCCESS
+from opt_attack.attack import SciPyAttack, Dist, SUCCESS, ObjectFun
 from opt_attack import utils
 
 
@@ -14,7 +14,7 @@ class Experiment():
     a: int                          # original class
     t: int                          # target class
     c: float                        # c value
-    formulation: str = 'szegedy'    # 'szegedy' or 'carlini'
+    formulation: ObjectFun = ObjectFun.szegedy # szegedy, carlini or other
     norm: Dist = Dist.L1            # L1, L2 or L3
     attacker_name: str = type(SciPyAttack).__name__  # 'optimus' or 'scipy'
 
@@ -22,7 +22,7 @@ class Experiment():
         return '-'.join([
             self.attacker_name,
             self.norm.name,
-            self.formulation,
+            self.formulation.name,
             str(self.a),
             str(self.t),
             f'{self.c:.2f}'
@@ -32,6 +32,7 @@ class Experiment():
         '''Returns a dictionary with the values to be inserted as a row to de database'''
         row = self.__dict__.copy()        # Copy so we can modify it
         row['norm'] = self.norm.name      # replace it so it looks cleaner
+        row['formulation'] = self.formulation.name
         row['success'] = attack_result == SUCCESS
         row['distance'] = distance_res
         row['nits'] = nits
@@ -70,7 +71,7 @@ def get_done_exps():
             a=int(row['a']),
             t=int(row['t']),
             c=float(row['c']),
-            formulation=row['formulation'],
+            formulation=ObjectFun[row['formulation']],
             norm=Dist[row['norm']],
             attacker_name=row['attacker_name']
         )
@@ -100,7 +101,7 @@ def run_all_experiments():
     )
 
     # Choose a formulation for the objective function
-    formulation = 'szegedy'
+    formulation = ObjectFun.szegedy
 
     # Choose distance to be used
     for distance in Dist:
