@@ -549,7 +549,7 @@ def binary_search_attack(
     original_class: int,
     target_class: int,
     initial_guess: np.ndarray,
-    obj_fun: str,
+    obj_fun: ObjectFun,
     maxiters_bs: int = 10,
     c_left: float = 1e-02,
     c_right: float = 1.0
@@ -581,11 +581,11 @@ attribute.
 
     An initial guess for the adversarial example.
 
-- **obj_fun** : _str_
+- **obj_fun** : _ObjectFun_
 
     Objective function to use in the optimization. Options are:
-    - `'carlini'`: Uses Carlini's objective function.
-    - `'szegedy'`: Uses Szegedy's objective function.
+    - `ObjectFun.carlini`: Uses Carlini's objective function.
+    - `ObjectFun.szegedy`: Uses Szegedy's objective function.
 
 - **maxiters_bs** : _int_, _optional_
 
@@ -624,7 +624,7 @@ def parallel_attack(
     original_class: int,
     target_class: int,
     initial_guess: np.ndarray,
-    obj_fun: str,
+    obj_fun: ObjectFun,
     c_start: float = 1e-02,
     c_stop: float = 1.0,
     c_num: int = 10
@@ -660,11 +660,11 @@ metric) but classified as `target_classs` is selected and stored in the
 
     An initial guess for the adversarial example.
 
-- **obj_fun** : _str_
+- **obj_fun** : _ObjectFun_
 
     Objective function to use in the optimization. Options are:
-    - `'carlini'`: Uses Carlini's objective function.
-    - `'szegedy'`: Uses Szegedy's objective function.
+    - `ObjectFun.carlini`: Uses Carlini's objective function.
+    - `ObjectFun.szegedy`: Uses Szegedy's objective function.
 
 - **c_start** : _float_, _optional_
 
