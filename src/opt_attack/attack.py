@@ -88,6 +88,23 @@ class Dist(enum.Enum):
         else:
             return tf.reduce_max(tf.abs(x - y))
 
+
+class ObjectFun(enum.Enum):
+    '''
+    Enumeration of different formulations for the objective function.
+    '''
+    szegedy = 'szegedy'
+    carlini = 'carlini'
+    szegedy_alt = 'szegedy_alt'
+    carlini_alt = 'carlini_alt'
+
+    def needs_softmax(self) -> bool:
+        '''
+        Whether or not the formulation of the objective function requires the softmax at the end.
+        '''
+        return self == ObjectFun.szegedy or self == ObjectFun.szegedy_alt
+
+
 class Attack:
     '''
     Abstract class to generate adversarial examples for a given model.
@@ -239,7 +256,7 @@ class Attack:
             original_class: int,
             target_class: int,
             initial_guess: np.ndarray,
-            obj_fun: str,
+            obj_fun: ObjectFun,
             c: float
         ) -> int:
         '''
@@ -265,10 +282,10 @@ class Attack:
         initial_guess : np.ndarray
             An initial guess for the adversarial example.
 
-        obj_fun : str
+        obj_fun : ObjectFun
             Objective function to use in the optimization. Options are:
-            - `'carlini'`: Uses Carlini's objective function.
-            - `'szegedy'`: Uses Szegedy's objective function.
+            - `ObjectFun.carlini`: Uses Carlini's objective function.
+            - `ObjectFun.szegedy`: Uses Szegedy's objective function.
 
         c : float
             Constant that balances the importance of the objective function
@@ -295,14 +312,15 @@ class Attack:
         self.target_one_hot = tf.one_hot([self.target_class], 10)
 
         # Choose objective function
-        if obj_fun == 'carlini':
-            fun = self._fun_carlini
-        elif obj_fun == 'szegedy':
-            fun = self._fun_szegedy
-        else:
-            msg = f"`{obj_fun}` function not implemented."
-            logger.error(msg)
-            raise NotImplementedError(msg)
+        match obj_fun:
+            case ObjectFun.szegedy:
+                fun = self._fun_szegedy
+            case ObjectFun.carlini:
+                fun = self._fun_szegedy
+            case _:
+                msg = f"`{obj_fun.name}` function not implemented."
+                logger.error(msg)
+                raise NotImplementedError(msg)
 
         # Clear previous result
         self.res = {
@@ -335,7 +353,7 @@ class Attack:
             original_class: int,
             target_class: int,
             initial_guess: np.ndarray,
-            obj_fun: str,
+            obj_fun: ObjectFun,
             maxiters_bs: int = 10,
             c_left: float = 1e-02,
             c_right: float = 1.0
@@ -363,10 +381,10 @@ class Attack:
         initial_guess : np.ndarray
             An initial guess for the adversarial example.
 
-        obj_fun : str
+        obj_fun : ObjectFun
             Objective function to use in the optimization. Options are:
-            - `'carlini'`: Uses Carlini's objective function.
-            - `'szegedy'`: Uses Szegedy's objective function.
+            - `ObjectFun.carlini`: Uses Carlini's objective function.
+            - `ObjectFun.szegedy`: Uses Szegedy's objective function.
 
         maxiters_bs : int, optional
             Maximum number of binary search iterations (default is 10).
@@ -405,14 +423,15 @@ class Attack:
         self.target_one_hot = tf.one_hot([self.target_class], 10)
 
         # Choose objective function
-        if obj_fun == 'carlini':
-            fun = self._fun_carlini
-        elif obj_fun == 'szegedy':
-            fun = self._fun_szegedy
-        else:
-            msg = f"`{obj_fun}` function not implemented."
-            logger.error(msg)
-            raise NotImplementedError(msg)
+        match obj_fun:
+            case ObjectFun.szegedy:
+                fun = self._fun_szegedy
+            case ObjectFun.carlini:
+                fun = self._fun_szegedy
+            case _:
+                msg = f"`{obj_fun.name}` function not implemented."
+                logger.error(msg)
+                raise NotImplementedError(msg)
 
         # Clear previous result
         self.res = {
@@ -483,7 +502,7 @@ class Attack:
             original_class: int,
             target_class: int,
             initial_guess: np.ndarray,
-            obj_fun: str,
+            obj_fun: ObjectFun,
             c_start: float = 1e-02,
             c_stop: float = 1.0,
             c_num: int = 10
@@ -514,10 +533,10 @@ class Attack:
         initial_guess : np.ndarray
             An initial guess for the adversarial example.
 
-        obj_fun : str
+        obj_fun : ObjectFun
             Objective function to use in the optimization. Options are:
-            - `'carlini'`: Uses Carlini's objective function.
-            - `'szegedy'`: Uses Szegedy's objective function.
+            - `ObjectFun.carlini`: Uses Carlini's objective function.
+            - `ObjectFun.szegedy`: Uses Szegedy's objective function.
 
         c_start : float, optional
             Starting value of the range of `c` values (default is 1e-2).
@@ -555,14 +574,15 @@ class Attack:
         self.target_one_hot = tf.one_hot([self.target_class], 10)
 
         # Choose objective function
-        if obj_fun == 'carlini':
-            fun = self._fun_carlini
-        elif obj_fun == 'szegedy':
-            fun = self._fun_szegedy
-        else:
-            msg = f"`{obj_fun}` function not implemented."
-            logger.error(msg)
-            raise NotImplementedError(msg)
+        match obj_fun:
+            case ObjectFun.szegedy:
+                fun = self._fun_szegedy
+            case ObjectFun.carlini:
+                fun = self._fun_szegedy
+            case _:
+                msg = f"`{obj_fun.name}` function not implemented."
+                logger.error(msg)
+                raise NotImplementedError(msg)
 
         # Clear previous result
         self.res = {
