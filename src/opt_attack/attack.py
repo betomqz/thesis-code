@@ -316,7 +316,7 @@ class Attack:
             case ObjectFun.szegedy:
                 fun = self._fun_szegedy
             case ObjectFun.carlini:
-                fun = self._fun_szegedy
+                fun = self._fun_carlini
             case _:
                 msg = f"`{obj_fun.name}` function not implemented."
                 logger.error(msg)
@@ -427,7 +427,7 @@ class Attack:
             case ObjectFun.szegedy:
                 fun = self._fun_szegedy
             case ObjectFun.carlini:
-                fun = self._fun_szegedy
+                fun = self._fun_carlini
             case _:
                 msg = f"`{obj_fun.name}` function not implemented."
                 logger.error(msg)
@@ -578,7 +578,7 @@ class Attack:
             case ObjectFun.szegedy:
                 fun = self._fun_szegedy
             case ObjectFun.carlini:
-                fun = self._fun_szegedy
+                fun = self._fun_carlini
             case _:
                 msg = f"`{obj_fun.name}` function not implemented."
                 logger.error(msg)
