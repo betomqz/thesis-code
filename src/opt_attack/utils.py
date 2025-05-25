@@ -14,7 +14,7 @@ class TextColors:
     WARNING = '\033[93m'
     FAIL = '\033[91m'
     ENDC = '\033[0m'  # End of color
-    
+
 
 def load_mnist_data():
     '''
@@ -34,9 +34,9 @@ def load_mnist_data():
     # Make sure images have shape (28, 28, 1)
     x_train = np.expand_dims(x_train, -1)
     x_test = np.expand_dims(x_test, -1)
-    print("x_train shape:", x_train.shape)
-    print(x_train.shape[0], "train samples")
-    print(x_test.shape[0], "test samples")
+    # print("x_train shape:", x_train.shape)
+    # print(x_train.shape[0], "train samples")
+    # print(x_test.shape[0], "test samples")
 
     # convert class vectors to binary class matrices
     y_train = keras.utils.to_categorical(y_train, num_classes)
@@ -66,7 +66,7 @@ def get_inputs_tuples():
 
 
 def train_nn_mnist(save_path='models/', with_softmax=False):
-    
+
     batch_size = 128
     epochs = 3
     num_classes = 10
@@ -136,13 +136,13 @@ def load_mnist_model(path='models/mnist.keras'):
     model.load_weights(path)
     return model
 
-    
+
 def vis_flat_mnist(x, save=False, filename="fig.png", format="png"):
     '''
     Function to visualize an array of size 784 as a 28x28
     image in black and white.
     '''
-    temp = x.reshape(28,28,1)    
+    temp = x.reshape(28,28,1)
     fig, ax = plt.subplots()
     ax.set_axis_off()
     plt.imshow(temp, cmap='gray_r')
@@ -161,14 +161,14 @@ def save_flat_mnist_fig(x, fname):
 def eval_flat_pred(x, model):
     if x is None:
         return -1
-        
+
     temp = x.reshape(28,28,1)
     return np.argmax(model.predict(temp[np.newaxis,...],verbose = 0))
 
 
 def big_graph(path):
     '''
-    Function to generate a "big graph" of all available images 
+    Function to generate a "big graph" of all available images
     in a given path.
     '''
     image_size = (28, 28)
