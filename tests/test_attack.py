@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import logging
-from opt_attack.attack import Attack, OptimusAttack, SciPyAttack, Dist, SUCCESS
+from opt_attack.attack import Attack, OptimusAttack, SciPyAttack, Dist, SUCCESS, ObjectFun
 from keras import models
 from opt_attack import utils
 from pathlib import Path
@@ -93,7 +93,7 @@ class TestAttack(unittest.TestCase):
 
         return result == SUCCESS
 
-    def _perform_bin_search(self, attacker: Attack, obj_fun, c_left=0.01, c_right=2.0):
+    def _perform_bin_search(self, attacker: Attack, obj_fun: ObjectFun, c_left=0.01, c_right=2.0):
         '''Helper function to run binary search attacks'''
         # Original class will be 0
 
@@ -120,11 +120,11 @@ class TestAttack(unittest.TestCase):
         # See if test passed and log
         result = utils.eval_flat_pred(
             attacker.res['x'],
-            model=self.softmaxmodel if obj_fun == 'szegedy' else self.model
+            model=self.softmaxmodel if obj_fun.needs_softmax() else self.model
         )
         return result == 1
 
-    def _perform_parallel_attack(self, attacker: Attack, obj_fun, c_start=0.01, c_stop=1.0, c_num=10):
+    def _perform_parallel_attack(self, attacker: Attack, obj_fun: ObjectFun, c_start=0.01, c_stop=1.0, c_num=10):
         '''Helper function to run parallel attacks'''
         # Original class will be 0
 
@@ -151,7 +151,7 @@ class TestAttack(unittest.TestCase):
         # See if test passed and log
         result = utils.eval_flat_pred(
             attacker.res['x'],
-            model=self.softmaxmodel if obj_fun == 'szegedy' else self.model
+            model=self.softmaxmodel if obj_fun.needs_softmax() else self.model
         )
         return result == 1
 
@@ -168,7 +168,7 @@ class TestAttack(unittest.TestCase):
             maxiters_method=50,
             tol=0.1
         )
-        passed = self._perform_bin_search(attacker=attacker, obj_fun='szegedy')
+        passed = self._perform_bin_search(attacker=attacker, obj_fun=ObjectFun.szegedy)
         if passed:
             logger.info("The attack was successful")
         else:
@@ -188,7 +188,7 @@ class TestAttack(unittest.TestCase):
             maxiters_method=20,
             tol=0.1
         )
-        passed = self._perform_bin_search(attacker=attacker, obj_fun='szegedy')
+        passed = self._perform_bin_search(attacker=attacker, obj_fun=ObjectFun.szegedy)
         if passed:
             logger.info("The attack was successful")
         else:
@@ -209,7 +209,7 @@ class TestAttack(unittest.TestCase):
             tol=0.1
         )
         passed = self._perform_parallel_attack(
-            attacker=attacker, obj_fun='szegedy', c_num=5
+            attacker=attacker, obj_fun=ObjectFun.szegedy, c_num=5
         )
         if passed:
             logger.info("The attack was successful")
@@ -231,7 +231,7 @@ class TestAttack(unittest.TestCase):
             tol=0.1
         )
         passed = self._perform_parallel_attack(
-            attacker=attacker, obj_fun='szegedy', c_num=5
+            attacker=attacker, obj_fun=ObjectFun.szegedy, c_num=5
         )
         if passed:
             logger.info("The attack was successful")
@@ -252,7 +252,7 @@ class TestAttack(unittest.TestCase):
             maxiters_method=20,
             tol=0.2
         )
-        passed = self._perform_bin_search(attacker=attacker, obj_fun='carlini')
+        passed = self._perform_bin_search(attacker=attacker, obj_fun=ObjectFun.carlini)
         if passed:
             logger.info("The attack was successful")
         else:
@@ -272,7 +272,7 @@ class TestAttack(unittest.TestCase):
             maxiters_method=20,
             tol=0.2
         )
-        passed = self._perform_bin_search(attacker=attacker, obj_fun='carlini')
+        passed = self._perform_bin_search(attacker=attacker, obj_fun=ObjectFun.carlini)
         if passed:
             logger.info("The attack was successful")
         else:
@@ -293,7 +293,7 @@ class TestAttack(unittest.TestCase):
             tol=0.1
         )
         passed = self._perform_parallel_attack(
-            attacker=attacker, obj_fun='carlini', c_stop=0.35, c_num=2
+            attacker=attacker, obj_fun=ObjectFun.carlini, c_stop=0.35, c_num=2
         )
         if passed:
             logger.info("The attack was successful")
@@ -315,7 +315,7 @@ class TestAttack(unittest.TestCase):
             tol=0.1
         )
         passed = self._perform_parallel_attack(
-            attacker=attacker, obj_fun='carlini', c_num=5
+            attacker=attacker, obj_fun=ObjectFun.carlini, c_num=5
         )
         if passed:
             logger.info("The attack was successful")
@@ -337,7 +337,7 @@ class TestAttack(unittest.TestCase):
             method='L-BFGS-B',
             options={'maxiter':2000, 'disp':0}
         )
-        passed = self._perform_singleton(attacker=attacker, obj_fun='szegedy', c=0.01)
+        passed = self._perform_singleton(attacker=attacker, obj_fun=ObjectFun.szegedy, c=0.01)
         if passed:
             logger.info("The attack was successful")
         else:
@@ -357,7 +357,7 @@ class TestAttack(unittest.TestCase):
             method='L-BFGS-B',
             options={'maxiter':2000, 'disp':0}
         )
-        passed = self._perform_bin_search(attacker=attacker, obj_fun='szegedy')
+        passed = self._perform_bin_search(attacker=attacker, obj_fun=ObjectFun.szegedy)
         if passed:
             logger.info("The attack was successful")
         else:
@@ -377,7 +377,7 @@ class TestAttack(unittest.TestCase):
             method='L-BFGS-B',
             options={'maxiter':2000, 'disp':0}
         )
-        passed = self._perform_bin_search(attacker=attacker, obj_fun='szegedy')
+        passed = self._perform_bin_search(attacker=attacker, obj_fun=ObjectFun.szegedy)
         if passed:
             logger.info("The attack was successful")
         else:
@@ -398,7 +398,7 @@ class TestAttack(unittest.TestCase):
             options={'maxiter':2000, 'disp':0}
         )
         passed = self._perform_parallel_attack(
-            attacker=attacker, obj_fun='szegedy', c_stop=10.0
+            attacker=attacker, obj_fun=ObjectFun.szegedy, c_stop=10.0
         )
         if passed:
             logger.info("The attack was successful")
@@ -420,7 +420,7 @@ class TestAttack(unittest.TestCase):
             options={'maxiter':2000, 'disp':0}
         )
         passed = self._perform_parallel_attack(
-            attacker=attacker, obj_fun='szegedy', c_stop=1.0
+            attacker=attacker, obj_fun=ObjectFun.szegedy, c_stop=1.0
         )
         if passed:
             logger.info("The attack was successful")
@@ -442,7 +442,7 @@ class TestAttack(unittest.TestCase):
             options={'maxiter':2000, 'disp':0}
         )
         passed = self._perform_bin_search(
-            attacker=attacker, obj_fun='carlini', c_left=0.2, c_right=1.0
+            attacker=attacker, obj_fun=ObjectFun.carlini, c_left=0.2, c_right=1.0
         )
         if passed:
             logger.info("The attack was successful")
@@ -463,7 +463,7 @@ class TestAttack(unittest.TestCase):
             method='L-BFGS-B',
             options={'maxiter':2000, 'disp':0}
         )
-        passed = self._perform_bin_search(attacker=attacker, obj_fun='carlini')
+        passed = self._perform_bin_search(attacker=attacker, obj_fun=ObjectFun.carlini)
         if passed:
             logger.info("The attack was successful")
         else:
@@ -484,7 +484,7 @@ class TestAttack(unittest.TestCase):
             options={'maxiter':2000, 'disp':0}
         )
         passed = self._perform_parallel_attack(
-            attacker=attacker, obj_fun='carlini', c_stop=1.0
+            attacker=attacker, obj_fun=ObjectFun.carlini, c_stop=1.0
         )
         if passed:
             logger.info("The attack was successful")
@@ -506,7 +506,7 @@ class TestAttack(unittest.TestCase):
             options={'maxiter':2000, 'disp':0}
         )
         passed = self._perform_parallel_attack(
-            attacker=attacker, obj_fun='carlini', c_stop=10.0
+            attacker=attacker, obj_fun=ObjectFun.carlini, c_stop=10.0
         )
         if passed:
             logger.info("The attack was successful")
