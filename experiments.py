@@ -3,11 +3,17 @@ import numpy as np
 import pandas as pd
 import shutil
 import argparse
+import logging
 from keras import models
 from pathlib import Path
 from opt_attack.attack import SciPyAttack, Dist, SUCCESS, ObjectFun
 from opt_attack import utils
 
+
+SHOW_CONSOLE = True
+LOGGER_FORMAT = '%(asctime)s %(name)s %(funcName)s %(levelname)s: %(message)s'
+
+logger = logging.getLogger()
 
 @dataclass(frozen=True)
 class Experiment():
@@ -84,7 +90,6 @@ def run_all_experiments():
 
     # Define values for c
     c_values = [2**i for i in range(-6, 7)]
-    # c_values = [1.0]
 
     # Load the model with the softmax fn
     softmaxmodel = models.load_model('models/softmaxmnist.keras')
@@ -105,7 +110,7 @@ def run_all_experiments():
 
     # Choose distance to be used
     for distance in Dist:
-        print(f'Using distance {distance.name}')
+        logger.info(f'Using distance {distance.name}')
         attacker.distance = distance
 
         # Original class will be a
@@ -126,11 +131,11 @@ def run_all_experiments():
             # if experiment has already been run, skip
             done_exps = get_done_exps()
             if exp in done_exps:
-                print(f'Skipping experiment {exp} because it has already been run.')
+                logger.warning(f'Skipping experiment {exp} because it has already been run.')
                 continue
 
             # run experiment
-            print(f'Running experiment with c={c}, name={exp}')
+            logger.info(f'Running experiment with c={c}, name={exp}')
             result = attacker.singleton_attack(
                 original_input=og_input,
                 original_class=exp.a,
@@ -162,11 +167,28 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
+    # Logger setup. Write everything to a file (clear on each run) and only
+    # show warnings in console if SHOW_CONSOLE is True
+    logging.basicConfig(
+        filename=PARENT_DIR.joinpath('experiments.log'),
+        filemode='w',
+        level=logging.DEBUG,
+        format=LOGGER_FORMAT
+    )
+
+    if SHOW_CONSOLE:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.WARNING)
+        console_handler.setFormatter(logging.Formatter(LOGGER_FORMAT))
+        logging.getLogger().addHandler(console_handler)
+
     if args.clean:
         # Clean and create the directory again
         clean_outputs()
+        logger.info('Directory cleaned.')
     else:
         # Make sure parent directory exists
         PARENT_DIR.mkdir(parents=True, exist_ok=True)
 
     run_all_experiments()
+
