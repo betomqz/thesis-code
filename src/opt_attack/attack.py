@@ -317,10 +317,10 @@ class Attack:
                 fun = self._fun_szegedy
             case ObjectFun.carlini:
                 fun = self._fun_carlini
+            case ObjectFun.szegedy_alt:
+                fun = self._fun_szegedy_alt
             case _:
-                msg = f"`{obj_fun.name}` function not implemented."
-                logger.error(msg)
-                raise NotImplementedError(msg)
+                fun = self._fun_carlini_alt
 
         # Clear previous result
         self.res = {
@@ -428,10 +428,10 @@ class Attack:
                 fun = self._fun_szegedy
             case ObjectFun.carlini:
                 fun = self._fun_carlini
+            case ObjectFun.szegedy_alt:
+                fun = self._fun_szegedy_alt
             case _:
-                msg = f"`{obj_fun.name}` function not implemented."
-                logger.error(msg)
-                raise NotImplementedError(msg)
+                fun = self._fun_carlini_alt
 
         # Clear previous result
         self.res = {
@@ -579,10 +579,10 @@ class Attack:
                 fun = self._fun_szegedy
             case ObjectFun.carlini:
                 fun = self._fun_carlini
+            case ObjectFun.szegedy_alt:
+                fun = self._fun_szegedy_alt
             case _:
-                msg = f"`{obj_fun.name}` function not implemented."
-                logger.error(msg)
-                raise NotImplementedError(msg)
+                fun = self._fun_carlini_alt
 
         # Clear previous result
         self.res = {
@@ -668,7 +668,7 @@ class Attack:
 
             # Get distance from x0_t to x_t
             d = self.distance.compute_tens(x_tensor, self.original_input_tensor)
-            val = d + c * tf.nn.relu(max_z - pred[self.target_class])
+            val = c * d + tf.nn.relu(max_z - pred[self.target_class])
 
         gradients = tape.gradient(val, x_tensor).numpy().flatten()
         val = val.numpy()
@@ -715,6 +715,105 @@ class Attack:
             # Get distance from x0_t to x_t
             d = self.distance.compute_tens(x_tensor, self.original_input_tensor)
             val = c * d + ce
+
+        gradients = tape.gradient(val, x_tensor).numpy().flatten()
+        val = val.numpy()
+
+        return val, gradients
+
+    def _fun_carlini_alt(
+            self,
+            x: np.ndarray,
+            c: float
+        ) -> tuple[float, np.ndarray]:
+        '''
+        Objective function based on Carlini's formulation, but modified so that
+        h(x) is divided by c. Function to be minimized by `_minimize`.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            The input vector (current adversarial candidate).
+
+        c : float
+            Constant to weight the distance metric and the classification.
+
+        Returns
+        -------
+        val : float
+            The result of the objective function evaluated at `x`.
+
+        grad : np.ndarray
+            Gradient of the objective function with respect to `x`.
+        '''
+        # Convert the starting point from ndarray to tensor
+        x_tensor = tf.convert_to_tensor(x.reshape(-1,28,28,1), dtype=tf.float32)
+        x_tensor = tf.Variable(x_tensor, trainable=True)
+
+        # Calculate loss and gradients
+        with tf.GradientTape() as tape:
+            tape.watch(x_tensor)
+            pred = self.model(x_tensor)[0]
+            mask = tf.ones_like(pred, dtype=tf.bool)
+
+            # Set the t-th entry of the mask to False
+            mask = tf.tensor_scatter_nd_update(mask, indices=[[self.target_class]], updates=[False])
+
+            # Apply the mask to the tensor pred
+            masked_pred = tf.boolean_mask(pred, mask)
+
+            # Find the maximum value of the masked tensor
+            max_z = tf.reduce_max(masked_pred)
+
+            # Get distance from x0_t to x_t
+            d = self.distance.compute_tens(x_tensor, self.original_input_tensor)
+            val = c * d + tf.nn.relu(max_z - pred[self.target_class]) / c
+
+        gradients = tape.gradient(val, x_tensor).numpy().flatten()
+        val = val.numpy()
+
+        return val, gradients
+
+    def _fun_szegedy_alt(
+            self,
+            x: np.ndarray,
+            c: float
+        ) -> tuple[float, np.ndarray]:
+        '''
+        Objective function based on Szegedy's formulation, but modified so that
+        h(x) is divided by c. Function to be minimized by `_minimize`.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            The input vector (current adversarial candidate).
+
+        c : float
+            Constant to weight the distance metric and the classification.
+
+        Returns
+        -------
+        val : float
+            The result of the objective function evaluated at `x`.
+
+        grad : np.ndarray
+            Gradient of the objective function with respect to `x`.
+        '''
+        # Convert the starting point from ndarray to tensor
+        x_tensor = tf.convert_to_tensor(x.reshape(-1,28,28,1), dtype=tf.float32)
+        x_tensor = tf.Variable(x_tensor, trainable=True)
+
+        # Calculate loss and gradients
+        with tf.GradientTape() as tape:
+            tape.watch(x_tensor)
+            pred = self.model(x_tensor)
+            ce = tf.reduce_mean(
+                tf.keras.losses.categorical_crossentropy(self.target_one_hot, pred)
+            )
+
+            # Get distance from x0_t to x_t
+            d = self.distance.compute_tens(x_tensor, self.original_input_tensor)
+            val = c * d + ce / c
 
         gradients = tape.gradient(val, x_tensor).numpy().flatten()
         val = val.numpy()
