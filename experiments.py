@@ -105,7 +105,7 @@ def run_all_experiments():
     c_values = [2**i for i in range(-6, 7)]
 
     # Choose a formulation for the objective function
-    formulations = [ObjectFun.szegedy, ObjectFun.carlini]
+    formulations = list(ObjectFun)
 
     # Choose distance to be used
     distances = list(Dist)

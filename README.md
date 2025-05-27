@@ -22,6 +22,7 @@ _Example of the output: a zero that the model classifies as a one_.
   - [Overview](#overview)
   - [Use cases](#use-cases)
   - [Installation](#installation)
+  - [Experiments](#experiments)
   - [Unit tests](#unit-tests)
   - [Sample notebooks](#sample-notebooks)
 - [`opt_attack` documentation](#opt_attack-documentation)
@@ -89,6 +90,22 @@ source thesisenv/bin/activate
 
 ```bash
 pip install -e .
+```
+
+## Experiments
+
+To replicate the experiments, run:
+
+```
+python experiments.py
+```
+
+The output of the experiments will be on directory `logs/experiments`. If you'd
+like to remove the last results and run the experiments again, you can use the
+`--clean` flag:
+
+```
+python experiments.py --clean
 ```
 
 ## Unit tests
