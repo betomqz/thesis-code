@@ -8,9 +8,10 @@ from keras import models
 from pathlib import Path
 from opt_attack.attack import SciPyAttack, Dist, SUCCESS, ObjectFun
 from opt_attack import utils
+from tqdm import tqdm
 
 
-SHOW_CONSOLE = True
+SHOW_CONSOLE = False
 LOGGER_FORMAT = '%(asctime)s %(name)s %(funcName)s %(levelname)s: %(message)s'
 
 logger = logging.getLogger()
@@ -88,15 +89,10 @@ def run_all_experiments():
     # Get the ordered tuples
     inputs = utils.get_inputs_tuples()
 
-    # Define values for c
-    c_values = [2**i for i in range(-6, 7)]
-
     # Load the model with the softmax fn
     softmaxmodel = models.load_model('models/softmaxmnist.keras')
-
-    # Choose original class (a) and target (t)
-    a = 4
-    t = 9
+    # Load the model without the softmax fn
+    non_softmaxmodel = utils.load_mnist_model()
 
     # Create attacker object - we'll use SciPy for now
     attacker = SciPyAttack(
@@ -105,57 +101,75 @@ def run_all_experiments():
         options={'maxiter':2000, 'disp':0}
     )
 
+    # Define values for c
+    c_values = [2**i for i in range(-6, 7)]
+
     # Choose a formulation for the objective function
-    formulation = ObjectFun.szegedy
+    formulations = [ObjectFun.szegedy, ObjectFun.carlini]
 
     # Choose distance to be used
-    for distance in Dist:
-        logger.info(f'Using distance {distance.name}')
-        attacker.distance = distance
+    distances = list(Dist)
 
-        # Original class will be a
-        og_class, og_input = inputs[a]
+    # Choose original class (a) and target (t)
+    a_and_t_values = [(4, 9)]
 
-        # Run attack for each c
-        for c in c_values:
+    # Run all
+    total = len(formulations) * len(a_and_t_values) * len(distances) * len(c_values)
+    with tqdm(total=total, desc="Running experiments") as pbar:
+        for formulation in formulations:
+            attacker.model = softmaxmodel if formulation.needs_softmax() else non_softmaxmodel
 
-            exp = Experiment(
-                a=og_class,
-                t=t,
-                c=c,
-                formulation=formulation,
-                norm=distance,
-                attacker_name=type(attacker).__name__
-            )
+            for a, t in a_and_t_values:
+                # Original class will be a
+                og_class, og_input = inputs[a]
 
-            # if experiment has already been run, skip
-            done_exps = get_done_exps()
-            if exp in done_exps:
-                logger.warning(f'Skipping experiment {exp} because it has already been run.')
-                continue
+                for distance in distances:
+                    logger.info(f'Using distance {distance.name}')
+                    attacker.distance = distance
 
-            # run experiment
-            logger.info(f'Running experiment with c={c}, name={exp}')
-            result = attacker.singleton_attack(
-                original_input=og_input,
-                original_class=exp.a,
-                target_class=exp.t,
-                initial_guess=RANDOM_GUESS,
-                obj_fun=exp.formulation,
-                c=exp.c,
-            )
+                    # Run attack for each c
+                    for c in c_values:
 
-            # store experiment results in df
-            row = exp.get_result_as_row(
-                attack_result=result,
-                distance_res=exp.norm.compute_vec(og_input.flatten(), attacker.res['x']),
-                nits=attacker.res['nit']
-            )
-            write_row_to_csv(row)
+                        exp = Experiment(
+                            a=og_class,
+                            t=t,
+                            c=c,
+                            formulation=formulation,
+                            norm=distance,
+                            attacker_name=type(attacker).__name__
+                        )
+                        pbar.set_postfix_str(f'Exp: {exp}')
 
-            # save the image
-            fname = PARENT_DIR.joinpath(f'{exp}.png')
-            utils.save_flat_mnist_fig(attacker.res['x'], fname=fname)
+                        # if experiment has already been run, skip
+                        done_exps = get_done_exps()
+                        if exp in done_exps:
+                            logger.warning(f'Skipping experiment {exp} because it has already been run.')
+                            pbar.update(1)
+                            continue
+
+                        # run experiment
+                        logger.info(f'Running experiment with c={c}, name={exp}')
+                        result = attacker.singleton_attack(
+                            original_input=og_input,
+                            original_class=exp.a,
+                            target_class=exp.t,
+                            initial_guess=RANDOM_GUESS,
+                            obj_fun=exp.formulation,
+                            c=exp.c,
+                        )
+
+                        # store experiment results in df
+                        row = exp.get_result_as_row(
+                            attack_result=result,
+                            distance_res=exp.norm.compute_vec(og_input.flatten(), attacker.res['x']),
+                            nits=attacker.res['nit']
+                        )
+                        write_row_to_csv(row)
+
+                        # save the image
+                        fname = PARENT_DIR.joinpath(f'{exp}.png')
+                        utils.save_flat_mnist_fig(attacker.res['x'], fname=fname)
+                        pbar.update(1)
 
 
 if __name__ == '__main__':
@@ -191,4 +205,3 @@ if __name__ == '__main__':
         PARENT_DIR.mkdir(parents=True, exist_ok=True)
 
     run_all_experiments()
-
