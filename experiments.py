@@ -111,7 +111,7 @@ def run_all_experiments():
     distances = list(Dist)
 
     # Choose original class (a) and target (t)
-    a_and_t_values = [(4, 9)]
+    a_and_t_values = [(a, b) for a in range(10) for b in range(10) if a != b]
 
     # Run all
     total = len(formulations) * len(a_and_t_values) * len(distances) * len(c_values)
