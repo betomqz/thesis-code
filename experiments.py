@@ -82,10 +82,14 @@ def get_done_exps():
             norm=Dist[row['norm']],
             attacker_name=row['attacker_name']
         )
-        done_exps.add(exp)
+        h_exp = hash(exp)
+        done_exps.add(h_exp)
     return done_exps
 
 def run_all_experiments():
+    # Load hashes of done experiments
+    done_exps = get_done_exps()
+
     # Get the ordered tuples
     inputs = utils.get_inputs_tuples()
 
@@ -138,11 +142,11 @@ def run_all_experiments():
                             norm=distance,
                             attacker_name=type(attacker).__name__
                         )
+                        h_exp = hash(exp)
                         pbar.set_postfix_str(f'Exp: {exp}')
 
                         # if experiment has already been run, skip
-                        done_exps = get_done_exps()
-                        if exp in done_exps:
+                        if h_exp in done_exps:
                             logger.warning(f'Skipping experiment {exp} because it has already been run.')
                             pbar.update(1)
                             continue
@@ -169,6 +173,9 @@ def run_all_experiments():
                         # save the image
                         fname = PARENT_DIR.joinpath(f'{exp}.png')
                         utils.save_flat_mnist_fig(attacker.res['x'], fname=fname)
+
+                        # save done experiment
+                        done_exps.add(h_exp)
                         pbar.update(1)
 
 
