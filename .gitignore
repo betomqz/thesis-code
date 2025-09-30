@@ -21,6 +21,8 @@ models/
 
 notes.md
 # I'll store the results of my tests here
+benchmarks/results.csv
+benchmarks/analysis.ipynb
 logs/
 aux.ipynb
 
