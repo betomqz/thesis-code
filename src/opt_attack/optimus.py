@@ -500,6 +500,11 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
         y_k = kkt - (grad_k_old - np.dot(A_k_old.T,lam_k))
 
         if hessian == 'BFGS':
+            # (6.20): scale the provisional B_0 = I once before the first update
+            # to fix its poor magnitude. L-BFGS does the equivalent each iter.
+            sy = np.dot(s_k, y_k)
+            if k == 1 and sy > 0:
+                B_k = (np.dot(y_k, y_k) / sy) * B_k
             B_k = _bfgs(s_k=s_k, y_k=y_k, B_k=B_k)
         elif hessian == 'L-BFGS':
             # Damp y_k (Procedure 18.2) so every stored pair keeps
