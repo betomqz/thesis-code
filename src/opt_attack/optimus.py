@@ -211,6 +211,43 @@ def int_point_qp(G: np.ndarray,
     return x_k, y_k, lam_k
 
 
+def _damp_y(s_k: np.ndarray, y_k: np.ndarray, B_k: np.ndarray) -> np.ndarray:
+    '''
+    Damps the curvature vector `y_k` following the damped BFGS updating of
+    Procedure 18.2 (Nocedal, p. 537). The returned `r_k` satisfies
+    `s_k^T r_k >= 0.2 * s_k^T B_k s_k > 0`, so quasi-Newton updates built from it
+    stay symmetric positive definite even when `s_k^T y_k <= 0`.
+
+    Parameters
+    ----------
+    s_k : ndarray
+        Vector representing the change for x in current iteration (alpha_k *
+        p_k)
+
+    y_k : ndarray
+        Vector representing the change for the lagrangian in current iteration
+
+    B_k : ndarray
+        Current Hessian approximation.
+
+    Returns
+    -------
+    r_k : ndarray
+        Damped curvature vector.
+    '''
+    Bs = np.dot(B_k, s_k)
+    sBs = np.dot(s_k, Bs)
+    sy = np.dot(s_k, y_k)
+
+    # (18.15)
+    theta_k = 1
+    if sy < 0.2 * sBs:
+        theta_k = 0.8 * sBs / (sBs - sy)
+
+    # (18.14)
+    return theta_k * y_k + (1 - theta_k) * Bs
+
+
 def _bfgs(s_k: np.ndarray, y_k: np.ndarray, B_k: np.ndarray) -> np.ndarray:
     '''
     Calculates an update to the Hessian using a damped BFGS approach described
@@ -234,16 +271,9 @@ def _bfgs(s_k: np.ndarray, y_k: np.ndarray, B_k: np.ndarray) -> np.ndarray:
         Updated approximation to the Hessian
     '''
     # Damped BFGS updating (Procedure 18.2)
-    sy = np.dot(s_k, y_k)
     Bs = np.dot(B_k, s_k)
     sBs = np.dot(s_k, Bs)
-
-    # (18.15)
-    theta_k = 1
-    if sy < 0.2 * sBs:
-        theta_k = 0.8 * sBs / (sBs - sy)
-
-    r_k = theta_k * y_k + (1 - theta_k) * Bs
+    r_k = _damp_y(s_k=s_k, y_k=y_k, B_k=B_k)
 
     # Update B_k with (18.16) to guarantee that it is s.p.d.
     BssB = np.outer(Bs, Bs)
@@ -470,10 +500,18 @@ def ls_sqp(fun: Callable[[np.ndarray, tuple], tuple[float, np.ndarray]],
         y_k = kkt - (grad_k_old - np.dot(A_k_old.T,lam_k))
 
         if hessian == 'BFGS':
+            # (6.20): scale the provisional B_0 = I once before the first update
+            # to fix its poor magnitude. L-BFGS does the equivalent each iter.
+            sy = np.dot(s_k, y_k)
+            if k == 1 and sy > 0:
+                B_k = (np.dot(y_k, y_k) / sy) * B_k
             B_k = _bfgs(s_k=s_k, y_k=y_k, B_k=B_k)
         elif hessian == 'L-BFGS':
+            # Damp y_k (Procedure 18.2) so every stored pair keeps
+            # s_i^T r_i > 0 and the compact representation stays s.p.d.
+            r_k = _damp_y(s_k=s_k, y_k=y_k, B_k=B_k)
             S_k.append(s_k)
-            Y_k.append(y_k)
+            Y_k.append(r_k)
             B_k = _l_bfgs(
                 S_k=np.array(S_k).T,
                 Y_k=np.array(Y_k).T

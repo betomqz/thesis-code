@@ -13,7 +13,7 @@ from scipy.optimize import rosen, rosen_der, rosen_hess, minimize, Bounds
 logger = logging.getLogger()
 
 ## Single-run helpers
-def run_ls_sqp(n: int, tol: np.float64, hessian, maxiters=60):
+def run_ls_sqp(n: int, tol: np.float64, hessian, maxiters=200):
     cntr = cn.Counters()
     fun = cn.make_fun_with_counts(cntr)
     restr = cn.make_restr_with_counts(cntr)
@@ -87,8 +87,7 @@ def run_scipy(n: int, method: str, use_exact_hess=False, maxiters=200):
 
 # Benchmark ls_sqp
 def benchmark_lssqp(n_values, repeats=3, tol=5e-3, maxiters=60):
-    # hessians = ['BFGS']
-    hessians = ['L-BFGS', rosen_hess]
+    hessians = ['BFGS', 'L-BFGS', rosen_hess]
 
     total = len(n_values) * repeats * len(hessians)
     with tqdm(total=total, desc="Running ls_sqp benchmark") as pbar:
@@ -170,11 +169,10 @@ if __name__ == '__main__':
         format=bmr.LOGGER_FORMAT
     )
 
+    n_values = [10, 20, 50, 100, 200, 500]
+
     if args.lssqp:
-        # n_values = [10, 20, 50, 100] # for full BFGS
-        n_values = [10, 20, 50, 100, 200, 500]
         benchmark_lssqp(n_values=n_values)
 
     if args.scipy:
-        n_values = [10, 20, 50, 100, 200, 500]
         benchmark_scipy(n_values=n_values)
