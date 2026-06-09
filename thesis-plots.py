@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import seaborn as sns
 from pathlib import Path
 import argparse
@@ -17,6 +18,15 @@ sns.set_context('talk')
 PARENT_DIR = Path('logs/experiments/')
 RESULTS_CSV = PARENT_DIR.joinpath('results.csv')
 DEST_DIR = Path.cwd().parent.joinpath('thesis-latex/figs')
+
+COMPARISON_DIR = Path('logs/comparison/')
+COMPARISON_CSV = COMPARISON_DIR.joinpath('results.csv')
+COMPARISON_DEST = DEST_DIR.joinpath('comparison')
+
+METHOD_LABEL = {
+    'SciPyAttack': 'L-BFGS-B',
+    'OptimusAttack': 'LS-SQP',
+}
 
 # COL1 = '2AB0FF'
 # COL2 = '00675F' # dark green
@@ -117,6 +127,39 @@ def c_vs_dist_scatter(norm='L2'):
     g.savefig(f"{DEST_DIR.joinpath('cdist')}/{norm}-scatter.pdf", bbox_inches='tight')
     plt.close()
 
+## Comparison: LS-SQP vs L-BFGS-B on a fixed (a=3, t=8) singleton task
+def comparison_image_grid():
+    '''
+    2-row x N-col PDF showing the adversarial example each method produced for
+    each c. Rows: L-BFGS-B (top) and LS-SQP (bottom). One column per c value
+    found in the comparison CSV. Source/target reference is in
+    `comparison_source_target`.
+    '''
+    cdf = pd.read_csv(COMPARISON_CSV)
+    cs = sorted(cdf['c'].unique())
+    methods = ['SciPyAttack', 'OptimusAttack']
+
+    fig, axes = plt.subplots(2, len(cs), figsize=(2.5 * len(cs), 5.5))
+    for i, method in enumerate(methods):
+        for j, c in enumerate(cs):
+            fname = COMPARISON_DIR.joinpath(
+                f'{method}-L2-szegedy-3-8-{c:.2f}.png'
+            )
+            img = mpimg.imread(fname)
+            axes[i, j].imshow(img)
+            axes[i, j].set_xticks([])
+            axes[i, j].set_yticks([])
+            if i == 0:
+                axes[i, j].set_title(f'$c = {c:g}$')
+            if j == 0:
+                axes[i, j].set_ylabel(METHOD_LABEL[method])
+
+    plt.tight_layout()
+    COMPARISON_DEST.mkdir(parents=True, exist_ok=True)
+    plt.savefig(COMPARISON_DEST.joinpath('comparison-grid.pdf'),
+                bbox_inches='tight')
+    plt.close()
+
 def gen_heatmaps():
     # Successful attacks
     # source_target_heatmap_success(formulation='szegedy', norm='L2')
@@ -154,10 +197,14 @@ def gen_c_vs_dist():
     c_vs_dist_scatter(norm='L1')
     c_vs_dist_scatter(norm='LINF')
 
+def gen_comparison():
+    comparison_image_grid()
+
 # Generate all plots available
 def gen_all():
     gen_heatmaps()
     gen_c_vs_dist()
+    gen_comparison()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate graphs for the thesis')
@@ -171,6 +218,11 @@ if __name__ == '__main__':
         action='store_true',
         help='Only generate the images of c vs the distance'
     )
+    parser.add_argument(
+        '--comparison',
+        action='store_true',
+        help='Only generate the LS-SQP vs L-BFGS-B comparison artifacts'
+    )
     args = parser.parse_args()
 
 
@@ -178,6 +230,8 @@ if __name__ == '__main__':
         gen_heatmaps()
     elif args.cdist:
         gen_c_vs_dist()
+    elif args.comparison:
+        gen_comparison()
     else:
         gen_all()
 
